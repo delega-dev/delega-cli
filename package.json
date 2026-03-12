@@ -1,0 +1,27 @@
+{
+  "name": "delega-cli",
+  "version": "1.0.0",
+  "description": "CLI for Delega task API",
+  "type": "module",
+  "bin": {
+    "delega": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node --esm src/index.ts"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  },
+  "license": "MIT",
+  "author": "Delega <hello@delega.dev>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/delega-dev/delega-cli"
+  }
+}
