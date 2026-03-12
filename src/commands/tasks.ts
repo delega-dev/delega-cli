@@ -170,7 +170,7 @@ const tasksDelegate = new Command("delegate")
   .description("Delegate a task to another agent")
   .argument("<task_id>", "Task ID")
   .argument("<agent_id>", "Agent ID to delegate to")
-  .option("--content <content>", "Subtask description")
+  .requiredOption("--content <content>", "Subtask description (required)")
   .action(async (taskId: string, agentId: string, opts) => {
     const body: Record<string, unknown> = { assigned_to_agent_id: agentId };
     if (opts.content) body.content = opts.content;
