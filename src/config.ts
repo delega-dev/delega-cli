@@ -7,6 +7,8 @@ export interface DelegaConfig {
   api_url?: string;
 }
 
+const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
 function getConfigDir(): string {
   return node_path.join(node_os.homedir(), ".delega");
 }
@@ -31,13 +33,30 @@ export function loadConfig(): DelegaConfig {
 export function saveConfig(config: DelegaConfig): void {
   const configDir = getConfigDir();
   if (!node_fs.existsSync(configDir)) {
-    node_fs.mkdirSync(configDir, { recursive: true });
+    node_fs.mkdirSync(configDir, { recursive: true, mode: 0o700 });
   }
+  node_fs.chmodSync(configDir, 0o700);
   node_fs.writeFileSync(
     getConfigPath(),
     JSON.stringify(config, null, 2) + "\n",
-    "utf-8",
+    { encoding: "utf-8", mode: 0o600 },
   );
+  node_fs.chmodSync(getConfigPath(), 0o600);
+}
+
+export function normalizeApiUrl(rawUrl: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("Invalid Delega API URL");
+  }
+
+  if (parsed.protocol !== "https:" && !LOCAL_API_HOSTS.has(parsed.hostname)) {
+    throw new Error("Delega API URL must use HTTPS unless it points to localhost");
+  }
+
+  return rawUrl.replace(/\/+$/, "");
 }
 
 export function getApiKey(): string | undefined {
@@ -45,7 +64,7 @@ export function getApiKey(): string | undefined {
 }
 
 export function getApiUrl(): string {
-  return (
+  return normalizeApiUrl(
     process.env.DELEGA_API_URL ||
     loadConfig().api_url ||
     "https://api.delega.dev"

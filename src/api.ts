@@ -16,7 +16,16 @@ export async function apiCall<T = unknown>(
     process.exit(1);
   }
 
-  const url = getApiUrl() + path;
+  let apiBase: string;
+  try {
+    apiBase = getApiUrl();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Configuration error: ${msg}`);
+    process.exit(1);
+  }
+
+  const url = apiBase + path;
 
   const headers: Record<string, string> = {
     "X-Agent-Key": apiKey,

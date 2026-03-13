@@ -104,6 +104,12 @@ Config is stored in `~/.delega/config.json`:
 
 Environment variables take precedence over the config file.
 
+## Security Notes
+
+- `delega login` now hides API key input instead of echoing it back to the terminal.
+- `~/.delega/config.json` is written with owner-only permissions (`0600`), and the config directory is locked to `0700`.
+- Remote API URLs must use `https://`; plain `http://` is only accepted for `localhost` / `127.0.0.1`.
+
 ## License
 
 MIT

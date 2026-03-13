@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import node_readline from "node:readline";
-import { saveConfig, loadConfig } from "../config.js";
+import { saveConfig, loadConfig, normalizeApiUrl } from "../config.js";
 import { printBanner } from "../ui.js";
 
 interface Agent {
@@ -9,14 +9,28 @@ interface Agent {
   display_name?: string;
 }
 
-async function prompt(question: string): Promise<string> {
+async function promptSecret(question: string): Promise<string> {
+  const mutedOutput = {
+    muted: false,
+    write(chunk: string) {
+      if (!this.muted || chunk.includes(question)) {
+        process.stdout.write(chunk);
+      }
+    },
+  };
+
   const rl = node_readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: mutedOutput as unknown as NodeJS.WritableStream,
+    terminal: true,
   });
+
+  mutedOutput.muted = true;
+
   return new Promise((resolve) => {
     rl.question(question, (answer) => {
       rl.close();
+      process.stdout.write("\n");
       resolve(answer.trim());
     });
   });
@@ -27,7 +41,7 @@ export const loginCommand = new Command("login")
   .action(async () => {
     printBanner();
 
-    const key = await prompt("Enter your API key (starts with dlg_): ");
+    const key = await promptSecret("Enter your API key (starts with dlg_): ");
 
     if (!key) {
       console.error("No key provided.");
@@ -41,11 +55,20 @@ export const loginCommand = new Command("login")
 
     // Validate by calling the API
     const config = loadConfig();
-    const apiUrl = config.api_url || process.env.DELEGA_API_URL || "https://api.delega.dev";
+    let apiUrl: string;
+    try {
+      apiUrl = normalizeApiUrl(
+        config.api_url || process.env.DELEGA_API_URL || "https://api.delega.dev",
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Configuration error: ${msg}`);
+      process.exit(1);
+    }
 
     let res: Response;
     try {
-      res = await fetch(`${apiUrl}/v1/agents`, {
+      res = await fetch(`${apiUrl}/v1/agent/me`, {
         headers: {
           "X-Agent-Key": key,
           "Content-Type": "application/json",
@@ -64,11 +87,9 @@ export const loginCommand = new Command("login")
 
     let agentName = "agent";
     try {
-      const data = (await res.json()) as Agent | Agent[];
-      if (Array.isArray(data) && data.length > 0) {
-        agentName = data[0].display_name || data[0].name;
-      } else if (!Array.isArray(data) && data.name) {
-        agentName = data.display_name || data.name;
+      const data = (await res.json()) as { agent?: Agent };
+      if (data.agent?.name) {
+        agentName = data.agent.display_name || data.agent.name;
       }
     } catch {
       // Proceed with default name
