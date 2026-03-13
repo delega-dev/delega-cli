@@ -15,7 +15,7 @@ CLI for the Delega task API. Manage tasks, agents, and delegations from your ter
 ## Installation
 
 ```bash
-npm install -g delega-cli
+npm install -g @delega-dev/cli
 ```
 
 ## Quick Start

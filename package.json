@@ -1,6 +1,6 @@
 {
-  "name": "delega-cli",
-  "version": "1.0.0",
+  "name": "@delega-dev/cli",
+  "version": "1.0.1",
   "description": "CLI for Delega task API",
   "type": "module",
   "bin": {
@@ -35,5 +35,8 @@
   ],
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
