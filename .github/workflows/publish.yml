@@ -6,9 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  packages: write
   contents: write
-  id-token: write
 
 jobs:
   publish:
@@ -42,7 +40,9 @@ jobs:
           fi
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Generate changelog
         run: |
