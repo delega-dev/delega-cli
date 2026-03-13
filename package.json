@@ -26,17 +26,19 @@
   },
   "keywords": [
     "delega",
-    "ai-agents",
     "task-management",
+    "ai-agents",
     "mcp",
-    "cli",
-    "delegation",
-    "agent-infrastructure"
+    "cli"
   ],
   "engines": {
     "node": ">=18.0.0"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "homepage": "https://delega.dev",
+  "bugs": {
+    "url": "https://github.com/delega-dev/delega-cli/issues"
   }
 }
