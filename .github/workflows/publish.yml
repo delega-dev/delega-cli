@@ -21,9 +21,6 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Configure npm auth
-        run: echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc
-
       - run: npm ci
 
       - name: Type check
@@ -41,8 +38,20 @@ jobs:
             exit 1
           fi
 
+      - name: Debug npm auth
+        run: |
+          echo "Token length: ${#NPM_TOKEN}"
+          echo "Token prefix: ${NPM_TOKEN:0:6}..."
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          npm whoami 2>&1 || echo "whoami failed"
+          cat ~/.npmrc | head -1 | cut -c1-40
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to npm
-        run: npm publish --access public
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+          npm publish --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
