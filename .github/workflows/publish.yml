@@ -20,7 +20,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          registry-url: https://registry.npmjs.org
+
+      - name: Configure npm auth
+        run: echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > ~/.npmrc
 
       - run: npm ci
 
@@ -42,10 +44,9 @@ jobs:
       - name: Publish to npm
         run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Generate changelog
-        id: changelog
         run: |
           PREV_TAG=$(git tag --sort=-v:refname | sed -n '2p')
           if [ -n "$PREV_TAG" ]; then
@@ -57,7 +58,6 @@ jobs:
             echo "" >> /tmp/changelog.md
             git log --pretty=format:"- %s (%h)" --no-merges >> /tmp/changelog.md
           fi
-          cat /tmp/changelog.md
 
       - name: Create GitHub Release
         env:
