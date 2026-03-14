@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import node_readline from "node:readline";
-import { saveConfig, loadConfig, normalizeApiUrl } from "../config.js";
+import { saveConfig, loadConfig, normalizeApiUrl, persistApiKey } from "../config.js";
 import { printBanner } from "../ui.js";
 
 interface Agent {
@@ -122,12 +122,23 @@ export const loginCommand = new Command("login")
       validatedWithoutMetadata = true;
     }
 
-    saveConfig({ ...config, api_key: key });
+    let storageLocation: string;
+    try {
+      storageLocation = persistApiKey(key);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Unable to store API key securely: ${msg}`);
+      process.exit(1);
+    }
+
+    const nextConfig = { ...config };
+    delete nextConfig.api_key;
+    saveConfig(nextConfig);
     if (validatedWithoutMetadata) {
-      console.log("\nLogged in. Key saved to ~/.delega/config.json");
+      console.log(`\nLogged in. Key saved to ${storageLocation}`);
       console.log("Current server validated the key but does not expose /agent/me metadata.");
       return;
     }
 
-    console.log(`\nLogged in as ${agentName}. Key saved to ~/.delega/config.json`);
+    console.log(`\nLogged in as ${agentName}. Key saved to ${storageLocation}`);
   });

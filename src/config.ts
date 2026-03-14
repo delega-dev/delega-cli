@@ -1,6 +1,7 @@
 import node_fs from "node:fs";
 import node_path from "node:path";
 import node_os from "node:os";
+import { loadStoredApiKey, storeApiKey } from "./secret-store.js";
 
 export interface DelegaConfig {
   api_key?: string;
@@ -56,6 +57,17 @@ export function saveConfig(config: DelegaConfig): void {
   node_fs.chmodSync(getConfigPath(), 0o600);
 }
 
+export function persistApiKey(apiKey: string): string {
+  const storeLabel = storeApiKey(apiKey);
+  if (storeLabel) {
+    return storeLabel;
+  }
+
+  throw new Error(
+    "Secure credential storage is unavailable on this system. Set DELEGA_API_KEY manually instead.",
+  );
+}
+
 export function normalizeApiUrl(rawUrl: string): string {
   let parsed: URL;
   try {
@@ -80,7 +92,7 @@ export function normalizeApiUrl(rawUrl: string): string {
 }
 
 export function getApiKey(): string | undefined {
-  return process.env.DELEGA_API_KEY || loadConfig().api_key;
+  return process.env.DELEGA_API_KEY || loadStoredApiKey() || loadConfig().api_key;
 }
 
 export function getApiUrl(): string {

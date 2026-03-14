@@ -86,20 +86,27 @@ delega stats          # Show usage statistics
 
 ## Configuration
 
-Config is stored in `~/.delega/config.json`:
+Non-secret CLI settings are stored in `~/.delega/config.json`:
 
 ```json
 {
-  "api_key": "dlg_...",
   "api_url": "https://api.delega.dev"
 }
 ```
+
+`delega login` stores API keys in the OS credential store when one is available:
+
+- macOS: Keychain
+- Linux: libsecret keyring via `secret-tool`
+- Windows: DPAPI-protected user storage
+
+Existing `api_key` entries in `~/.delega/config.json` are still read for backward compatibility until the next successful `delega login`.
 
 ## Environment Variables
 
 | Variable | Description |
 |---|---|
-| `DELEGA_API_KEY` | API key (overrides config file) |
+| `DELEGA_API_KEY` | API key (overrides secure storage and config) |
 | `DELEGA_API_URL` | API base URL (overrides config file) |
 
 Environment variables take precedence over the config file.
@@ -121,6 +128,7 @@ Bare localhost URLs automatically use the self-hosted `/api` namespace. For remo
 ## Security Notes
 
 - `delega login` now hides API key input instead of echoing it back to the terminal.
+- `delega login` stores API keys in the OS credential store instead of plaintext config when secure storage is available.
 - `~/.delega/config.json` is written with owner-only permissions (`0600`), and the config directory is locked to `0700`.
 - Remote API URLs must use `https://`; plain `http://` is only accepted for `localhost` / `127.0.0.1`.
 - On servers that do not expose `/agent/me`, `delega login` and `delega whoami` fall back to generic authentication checks instead of printing hosted account metadata.
