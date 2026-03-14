@@ -30,7 +30,7 @@ const agentsList = new Command("list")
   .description("List agents")
   .option("--json", "Output raw JSON")
   .action(async (opts) => {
-    const data = await apiCall<Agent[]>("GET", "/v1/agents");
+    const data = await apiCall<Agent[]>("GET", "/agents");
 
     if (opts.json) {
       console.log(JSON.stringify(data, null, 2));
@@ -64,7 +64,7 @@ const agentsCreate = new Command("create")
     const body: Record<string, unknown> = { name };
     if (opts.displayName) body.display_name = opts.displayName;
 
-    const agent = await apiCall<Agent>("POST", "/v1/agents", body);
+    const agent = await apiCall<Agent>("POST", "/agents", body);
 
     if (opts.json) {
       console.log(JSON.stringify(agent, null, 2));
@@ -99,7 +99,7 @@ const agentsRotate = new Command("rotate")
 
     const result = await apiCall<{ api_key: string }>(
       "POST",
-      `/v1/agents/${id}/rotate-key`,
+      `/agents/${id}/rotate-key`,
     );
 
     console.log();

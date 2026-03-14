@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { apiCall } from "../api.js";
+import { apiCall, apiRequest } from "../api.js";
 import { label } from "../ui.js";
 
 interface Agent {
@@ -15,33 +15,50 @@ interface Agent {
   };
 }
 
+interface MeResponse {
+  agent?: Agent;
+  account?: {
+    email?: string;
+    plan?: string;
+  };
+}
+
 export const whoamiCommand = new Command("whoami")
   .description("Show current authenticated agent")
   .action(async () => {
-    const data = await apiCall<Agent | Agent[]>("GET", "/v1/agents");
-
-    let agent: Agent;
-    if (Array.isArray(data)) {
-      if (data.length === 0) {
-        console.error("No agent found.");
+    const me = await apiRequest<MeResponse>("GET", "/agent/me");
+    if (me.ok) {
+      const payload = me.data as MeResponse;
+      const agent = payload.agent;
+      if (!agent) {
+        console.error("Current server did not return agent details.");
         process.exit(1);
       }
-      agent = data[0];
-    } else {
-      agent = data;
+
+      console.log();
+      label("Agent", agent.name);
+      if (agent.display_name) {
+        label("Display Name", agent.display_name);
+      }
+      if (payload.account?.email || agent.user?.email || agent.email) {
+        label("Email", payload.account?.email || agent.user?.email || agent.email || "");
+      }
+      if (payload.account?.plan || agent.user?.plan || agent.plan) {
+        label("Plan", payload.account?.plan || agent.user?.plan || agent.plan || "");
+      }
+      label("Active", agent.active !== false ? "yes" : "no");
+      console.log();
+      return;
     }
 
+    if (me.status !== 404) {
+      await apiCall<MeResponse>("GET", "/agent/me");
+      return;
+    }
+
+    await apiCall<unknown[]>("GET", "/tasks?completed=true");
     console.log();
-    label("Agent", agent.name);
-    if (agent.display_name) {
-      label("Display Name", agent.display_name);
-    }
-    if (agent.user?.email || agent.email) {
-      label("Email", agent.user?.email || agent.email || "");
-    }
-    if (agent.user?.plan || agent.plan) {
-      label("Plan", agent.user?.plan || agent.plan || "");
-    }
-    label("Active", agent.active !== false ? "yes" : "no");
+    label("Authenticated", "yes");
+    label("Server", "Current API does not expose /agent/me");
     console.log();
   });

@@ -7,7 +7,19 @@ export interface DelegaConfig {
   api_url?: string;
 }
 
-const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
+
+function normalizeHost(hostname: string): string {
+  return hostname.replace(/^\[/, "").replace(/\]$/, "").toLowerCase();
+}
+
+function isLocalApiHost(hostname: string): boolean {
+  return LOCAL_API_HOSTS.has(normalizeHost(hostname));
+}
+
+function defaultApiBasePath(hostname: string): string {
+  return isLocalApiHost(hostname) ? "/api" : "/v1";
+}
 
 function getConfigDir(): string {
   return node_path.join(node_os.homedir(), ".delega");
@@ -52,11 +64,19 @@ export function normalizeApiUrl(rawUrl: string): string {
     throw new Error("Invalid Delega API URL");
   }
 
-  if (parsed.protocol !== "https:" && !LOCAL_API_HOSTS.has(parsed.hostname)) {
+  if (parsed.protocol !== "https:" && !isLocalApiHost(parsed.hostname)) {
     throw new Error("Delega API URL must use HTTPS unless it points to localhost");
   }
 
-  return rawUrl.replace(/\/+$/, "");
+  parsed.search = "";
+  parsed.hash = "";
+
+  const normalizedPath = parsed.pathname.replace(/\/+$/, "");
+  parsed.pathname = normalizedPath && normalizedPath !== "/"
+    ? normalizedPath
+    : defaultApiBasePath(parsed.hostname);
+
+  return parsed.toString().replace(/\/+$/, "");
 }
 
 export function getApiKey(): string | undefined {

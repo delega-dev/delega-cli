@@ -15,7 +15,7 @@ export const statsCommand = new Command("stats")
   .description("Show usage statistics")
   .option("--json", "Output raw JSON")
   .action(async (opts) => {
-    const data = await apiCall<Stats>("GET", "/v1/stats");
+    const data = await apiCall<Stats>("GET", "/stats");
 
     if (opts.json) {
       console.log(JSON.stringify(data, null, 2));

@@ -5,11 +5,17 @@ export interface ApiError {
   message?: string;
 }
 
-export async function apiCall<T = unknown>(
+export interface ApiResponse<T = unknown> {
+  ok: boolean;
+  status: number;
+  data: T | ApiError;
+}
+
+export async function apiRequest<T = unknown>(
   method: string,
   path: string,
   body?: unknown,
-): Promise<T> {
+): Promise<ApiResponse<T>> {
   const apiKey = getApiKey();
   if (!apiKey) {
     console.error("Not authenticated. Run: delega login");
@@ -46,11 +52,6 @@ export async function apiCall<T = unknown>(
     process.exit(1);
   }
 
-  if (res.status === 401) {
-    console.error("Authentication failed. Run: delega login");
-    process.exit(1);
-  }
-
   let data: unknown;
   const text = await res.text();
   try {
@@ -59,12 +60,30 @@ export async function apiCall<T = unknown>(
     data = { message: text };
   }
 
-  if (!res.ok) {
-    const errData = data as ApiError;
-    const msg = errData.error || errData.message || `Request failed (${res.status})`;
+  return {
+    ok: res.ok,
+    status: res.status,
+    data: data as T | ApiError,
+  };
+}
+
+export async function apiCall<T = unknown>(
+  method: string,
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const result = await apiRequest<T>(method, path, body);
+  if (result.status === 401) {
+    console.error("Authentication failed. Run: delega login");
+    process.exit(1);
+  }
+
+  if (!result.ok) {
+    const errData = result.data as ApiError;
+    const msg = errData.error || errData.message || `Request failed (${result.status})`;
     console.error(`Error: ${msg}`);
     process.exit(1);
   }
 
-  return data as T;
+  return result.data as T;
 }

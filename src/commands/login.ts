@@ -9,6 +9,10 @@ interface Agent {
   display_name?: string;
 }
 
+interface MeResponse {
+  agent?: Agent;
+}
+
 async function promptSecret(question: string): Promise<string> {
   const mutedOutput = {
     muted: false,
@@ -68,7 +72,7 @@ export const loginCommand = new Command("login")
 
     let res: Response;
     try {
-      res = await fetch(`${apiUrl}/v1/agent/me`, {
+      res = await fetch(`${apiUrl}/agent/me`, {
         headers: {
           "X-Agent-Key": key,
           "Content-Type": "application/json",
@@ -80,21 +84,50 @@ export const loginCommand = new Command("login")
       process.exit(1);
     }
 
-    if (!res.ok) {
+    if (!res.ok && res.status !== 404) {
       console.error("Invalid API key. Authentication failed.");
       process.exit(1);
     }
 
     let agentName = "agent";
-    try {
-      const data = (await res.json()) as { agent?: Agent };
-      if (data.agent?.name) {
-        agentName = data.agent.display_name || data.agent.name;
+    let validatedWithoutMetadata = false;
+
+    if (res.ok) {
+      try {
+        const data = (await res.json()) as MeResponse;
+        if (data.agent?.name) {
+          agentName = data.agent.display_name || data.agent.name;
+        }
+      } catch {
+        // Proceed with default name
       }
-    } catch {
-      // Proceed with default name
+    } else {
+      try {
+        res = await fetch(`${apiUrl}/tasks?completed=true`, {
+          headers: {
+            "X-Agent-Key": key,
+            "Content-Type": "application/json",
+          },
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`Connection error: ${msg}`);
+        process.exit(1);
+      }
+
+      if (!res.ok) {
+        console.error("Invalid API key. Authentication failed.");
+        process.exit(1);
+      }
+      validatedWithoutMetadata = true;
     }
 
     saveConfig({ ...config, api_key: key });
+    if (validatedWithoutMetadata) {
+      console.log("\nLogged in. Key saved to ~/.delega/config.json");
+      console.log("Current server validated the key but does not expose /agent/me metadata.");
+      return;
+    }
+
     console.log(`\nLogged in as ${agentName}. Key saved to ~/.delega/config.json`);
   });

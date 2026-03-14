@@ -49,7 +49,7 @@ const tasksList = new Command("list")
   .option("--limit <n>", "Limit results", parseInt)
   .option("--json", "Output raw JSON")
   .action(async (opts) => {
-    let path = "/v1/tasks";
+    let path = "/tasks";
     const params: string[] = [];
     if (opts.completed) params.push("completed=true");
     if (opts.limit) params.push(`limit=${opts.limit}`);
@@ -93,7 +93,7 @@ const tasksCreate = new Command("create")
     if (opts.labels) body.labels = opts.labels.split(",").map((l: string) => l.trim());
     if (opts.due) body.due_date = opts.due;
 
-    const task = await apiCall<Task>("POST", "/v1/tasks", body);
+    const task = await apiCall<Task>("POST", "/tasks", body);
 
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
@@ -113,7 +113,7 @@ const tasksShow = new Command("show")
   .argument("<id>", "Task ID")
   .option("--json", "Output raw JSON")
   .action(async (id: string, opts) => {
-    const task = await apiCall<Task>("GET", `/v1/tasks/${id}`);
+    const task = await apiCall<Task>("GET", `/tasks/${id}`);
 
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
@@ -149,7 +149,7 @@ const tasksComplete = new Command("complete")
   .description("Mark a task as completed")
   .argument("<id>", "Task ID")
   .action(async (id: string) => {
-    await apiCall("POST", `/v1/tasks/${id}/complete`);
+    await apiCall("POST", `/tasks/${id}/complete`);
     console.log(`Task ${id} completed.`);
   });
 
@@ -162,7 +162,7 @@ const tasksDelete = new Command("delete")
       console.log("Cancelled.");
       return;
     }
-    await apiCall("DELETE", `/v1/tasks/${id}`);
+    await apiCall("DELETE", `/tasks/${id}`);
     console.log(`Task ${id} deleted.`);
   });
 
@@ -175,7 +175,7 @@ const tasksDelegate = new Command("delegate")
     const body: Record<string, unknown> = { assigned_to_agent_id: agentId };
     if (opts.content) body.content = opts.content;
 
-    await apiCall("POST", `/v1/tasks/${taskId}/delegate`, body);
+    await apiCall("POST", `/tasks/${taskId}/delegate`, body);
     console.log(`Task delegated to ${agentId}.`);
   });
 
