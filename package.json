@@ -15,7 +15,7 @@
     "commander": "^12.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
+    "@types/node": "^25.5.0",
     "typescript": "^5.5.0"
   },
   "license": "MIT",
