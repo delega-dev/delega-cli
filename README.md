@@ -66,7 +66,7 @@ delega tasks delegate <task-id> <agent-id> --content "subtask description"
 delega agents list                              # List agents
 delega agents create <name>                     # Create an agent
 delega agents create <name> --display-name "Friendly Name"
-delega agents rotate <id>                       # Rotate an agent's API key
+delega agents rotate <id>                       # Rotate an agent's API key (admin key required)
 ```
 
 ### Stats
