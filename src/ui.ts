@@ -51,8 +51,9 @@ export function formatDate(iso: string): string {
   });
 }
 
-export function formatId(id: string): string {
-  return id.slice(0, 8);
+export function formatId(id: string | number): string {
+  const s = String(id);
+  return s.length > 8 ? s.slice(0, 8) : s;
 }
 
 export function priorityBadge(n: number): string {
