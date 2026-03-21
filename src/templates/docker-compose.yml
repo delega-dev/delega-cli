@@ -3,7 +3,7 @@ services:
     image: ghcr.io/delega-dev/delega:__DELEGA_VERSION__
     restart: unless-stopped
     ports:
-      - "__DELEGA_PORT__:18890"
+      - "127.0.0.1:__DELEGA_PORT__:18890"
     volumes:
       - delega-data:/app/.delega
 
