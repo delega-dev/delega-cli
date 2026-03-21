@@ -20,6 +20,20 @@ npm install -g @delega-dev/cli
 
 ## Quick Start
 
+The fastest way to get started — one command handles signup, verification, and your first task:
+
+```bash
+npx @delega-dev/cli init
+```
+
+The interactive wizard walks you through:
+1. **Hosted** — sign up with your email, verify, get your API key
+2. **Self-hosted** — spin up a Docker instance and bootstrap your first agent
+
+Either path ends with a working API key, a demo task, and ready-to-paste MCP config.
+
+### Already have an account?
+
 ```bash
 # Authenticate with your API key
 delega login
@@ -35,6 +49,12 @@ delega tasks complete <task-id>
 ```
 
 ## Commands
+
+### Getting Started
+
+```bash
+delega init           # Interactive setup wizard (signup or self-hosted)
+```
 
 ### Authentication
 
