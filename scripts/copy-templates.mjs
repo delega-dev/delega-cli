@@ -6,14 +6,4 @@ const rootDir = node_path.resolve(node_path.dirname(fileURLToPath(import.meta.ur
 const sourceDir = node_path.join(rootDir, "src", "templates");
 const targetDir = node_path.join(rootDir, "dist", "templates");
 
-node_fs.mkdirSync(targetDir, { recursive: true });
-
-for (const entry of node_fs.readdirSync(sourceDir, { withFileTypes: true })) {
-  if (!entry.isFile()) {
-    continue;
-  }
-  node_fs.copyFileSync(
-    node_path.join(sourceDir, entry.name),
-    node_path.join(targetDir, entry.name),
-  );
-}
+node_fs.cpSync(sourceDir, targetDir, { recursive: true });

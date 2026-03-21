@@ -307,7 +307,10 @@ async function createDemoTask(apiBaseUrl: string, apiKey: string): Promise<TaskR
 }
 
 function parsePort(input: string): number {
-  const port = Number.parseInt(input, 10);
+  if (!/^\d+$/.test(input)) {
+    throw new UserFacingError("Port must be a number between 1 and 65535.");
+  }
+  const port = Number(input);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new UserFacingError("Port must be a number between 1 and 65535.");
   }
@@ -486,24 +489,36 @@ async function runHostedSetup(): Promise<SetupResult> {
   console.log(chalk.green(`✓ ${(signup.data as HostedSignupResponse).message || "Verification email sent."}`));
   console.log(chalk.dim("Check your email for the 6-digit verification code."));
 
-  let code = "";
-  while (!/^\d{6}$/.test(code)) {
-    code = await promptText("Enter the 6-digit verification code: ");
-    if (!/^\d{6}$/.test(code)) {
-      console.log(chalk.yellow("Enter the 6-digit code from your email."));
+  const MAX_VERIFY_ATTEMPTS = 3;
+
+  for (let attempt = 1; attempt <= MAX_VERIFY_ATTEMPTS; attempt += 1) {
+    let code = "";
+    while (!/^\d{6}$/.test(code)) {
+      code = await promptText("Enter the 6-digit verification code: ");
+      if (!/^\d{6}$/.test(code)) {
+        console.log(chalk.yellow("Enter the 6-digit code from your email."));
+      }
     }
-  }
 
-  const verify = await requestJson<HostedVerifyResponse>(
-    `${hostedApiBase}/verify`,
-    jsonRequest("POST", { email, code }),
-    "Verification",
-  );
-
-  if (!verify.response.ok) {
-    throw new UserFacingError(
-      parseApiError(verify.data, `Verification failed (${verify.response.status})`),
+    const verify = await requestJson<HostedVerifyResponse>(
+      `${hostedApiBase}/verify`,
+      jsonRequest("POST", { email, code }),
+      "Verification",
     );
+
+    if (verify.response.ok) {
+      break;
+    }
+
+    const errorMsg = parseApiError(verify.data, "Invalid code");
+
+    if (attempt < MAX_VERIFY_ATTEMPTS) {
+      console.log(chalk.yellow(`${errorMsg}. ${MAX_VERIFY_ATTEMPTS - attempt} attempt(s) remaining.`));
+    } else {
+      throw new UserFacingError(
+        `Verification failed after ${MAX_VERIFY_ATTEMPTS} attempts. Run \`delega init\` to try again.`,
+      );
+    }
   }
 
   return finalizeSetup(HOSTED_API_URL, agent.api_key, HOSTED_DASHBOARD_URL);
