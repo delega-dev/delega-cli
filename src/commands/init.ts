@@ -136,50 +136,6 @@ async function promptText(question: string, defaultValue?: string): Promise<stri
   });
 }
 
-async function promptSecret(question: string): Promise<string> {
-  const mutedOutput = {
-    muted: false,
-    write(chunk: string) {
-      if (!this.muted || chunk.includes(question)) {
-        process.stdout.write(chunk);
-      }
-    },
-  };
-
-  const rl = node_readline.createInterface({
-    input: process.stdin,
-    output: mutedOutput as unknown as NodeJS.WritableStream,
-    terminal: true,
-  });
-
-  mutedOutput.muted = true;
-
-  return new Promise((resolve, reject) => {
-    let settled = false;
-
-    const finish = (fn: () => void) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      rl.close();
-      fn();
-    };
-
-    rl.on("SIGINT", () => {
-      process.stdout.write("\n");
-      finish(() => reject(new InitCancelledError()));
-    });
-
-    rl.question(question, (answer) => {
-      finish(() => {
-        process.stdout.write("\n");
-        resolve(answer.trim());
-      });
-    });
-  });
-}
-
 async function promptChoice(question: string, options: string[]): Promise<number> {
   console.log();
   console.log(chalk.cyan.bold(question));
@@ -399,25 +355,50 @@ function startDockerCompose(composeDir: string): void {
 
 async function waitForHealthy(apiBaseUrl: string): Promise<void> {
   const healthUrl = `${apiBaseUrl}/health`;
+  const maxWaitMs = 90_000;
+  const initialDelayMs = 2_000;
+  const maxDelayMs = 10_000;
+  const startTime = Date.now();
 
-  for (let attempt = 1; attempt <= 5; attempt += 1) {
+  let attempt = 0;
+  let delayMs = initialDelayMs;
+
+  while (Date.now() - startTime < maxWaitMs) {
+    attempt += 1;
     try {
       const response = await fetch(healthUrl);
       if (response.ok) {
         return;
       }
     } catch {
-      // Keep polling until the service responds or we exhaust attempts.
+      // Keep polling until the service responds or we run out of time.
     }
 
-    if (attempt < 5) {
-      console.log(chalk.dim(`Waiting for Delega to come up... (${attempt}/5)`));
-      await sleep(2000);
+    const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+    const remainingSec = Math.round((maxWaitMs - (Date.now() - startTime)) / 1000);
+
+    if (remainingSec <= 0) {
+      break;
     }
+
+    if (attempt === 1) {
+      console.log(
+        chalk.dim("First-time Docker pull may take a minute or two..."),
+      );
+    }
+
+    console.log(
+      chalk.dim(`  Waiting for API... ${elapsedSec}s elapsed (timeout in ${remainingSec}s)`),
+    );
+
+    await sleep(delayMs);
+    delayMs = Math.min(delayMs * 1.5, maxDelayMs);
   }
 
   throw new UserFacingError(
-    `Delega did not become healthy at ${healthUrl}. Check \`docker compose logs\` and try again.`,
+    `Delega did not become healthy at ${healthUrl} within 90 seconds.\n` +
+    "  If Docker is still pulling the image, wait and retry.\n" +
+    "  Check logs with: docker compose logs",
   );
 }
 
