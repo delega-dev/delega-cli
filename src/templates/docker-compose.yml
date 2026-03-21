@@ -1,6 +1,6 @@
 services:
   delega:
-    image: ghcr.io/delega-dev/delega:latest
+    image: ghcr.io/delega-dev/delega:__DELEGA_VERSION__
     restart: unless-stopped
     ports:
       - "__DELEGA_PORT__:18890"

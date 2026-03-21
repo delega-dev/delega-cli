@@ -15,6 +15,7 @@ import {
 } from "../config.js";
 import { printBanner } from "../ui.js";
 
+const DELEGA_DOCKER_TAG = "1.0.0";
 const HOSTED_API_URL = "https://api.delega.dev";
 const DEFAULT_LOCAL_PORT = 18890;
 const DEMO_TASK_CONTENT = "Review the Delega quickstart docs and try the API";
@@ -245,7 +246,9 @@ function loadDockerComposeTemplate(): string {
 }
 
 function buildDockerCompose(port: number): string {
-  return loadDockerComposeTemplate().replace(/__DELEGA_PORT__/g, String(port));
+  return loadDockerComposeTemplate()
+    .replace(/__DELEGA_PORT__/g, String(port))
+    .replace(/__DELEGA_VERSION__/g, DELEGA_DOCKER_TAG);
 }
 
 function printSection(title: string): void {
@@ -306,23 +309,25 @@ async function createDemoTask(apiBaseUrl: string, apiKey: string): Promise<TaskR
   return result.data as TaskResponse;
 }
 
-function parsePort(input: string): number {
+function tryParsePort(input: string): number | null {
   if (!/^\d+$/.test(input)) {
-    throw new UserFacingError("Port must be a number between 1 and 65535.");
+    return null;
   }
   const port = Number(input);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    throw new UserFacingError("Port must be a number between 1 and 65535.");
+    return null;
   }
   return port;
 }
 
-function ensureDockerInstalled(): void {
+function ensureDockerComposeInstalled(): void {
   try {
-    node_child_process.execSync("docker --version", { stdio: "ignore" });
+    node_child_process.execSync("docker compose version", { stdio: "ignore" });
   } catch {
     throw new UserFacingError(
-      `Docker is required for self-hosted setup. Install it first: ${DOCKER_INSTALL_URL}`,
+      "Docker with the Compose plugin is required for self-hosted setup.\n" +
+      `  Install Docker Desktop (includes Compose): ${DOCKER_INSTALL_URL}\n` +
+      "  Or install the Compose plugin: https://docs.docker.com/compose/install/",
     );
   }
 }
@@ -531,10 +536,17 @@ async function runHostedSetup(): Promise<SetupResult> {
 }
 
 async function runSelfHostedSetup(): Promise<SetupResult> {
-  ensureDockerInstalled();
+  ensureDockerComposeInstalled();
 
-  const portInput = await promptText(`Port for Delega API [${DEFAULT_LOCAL_PORT}]: `);
-  const port = parsePort(portInput || String(DEFAULT_LOCAL_PORT));
+  let port: number | null = null;
+  while (port === null) {
+    const portInput = await promptText(`Port for Delega API [${DEFAULT_LOCAL_PORT}]: `);
+    port = tryParsePort(portInput || String(DEFAULT_LOCAL_PORT));
+    if (port === null) {
+      console.log(chalk.yellow("Port must be a number between 1 and 65535."));
+    }
+  }
+
   const rawApiUrl = `http://localhost:${port}`;
   const apiBaseUrl = normalizeApiUrl(rawApiUrl);
 
@@ -595,7 +607,9 @@ function printSuccess(result: SetupResult): void {
   printSection("What's next");
   console.log();
   console.log(`  Docs:       ${DOCS_URL}`);
-  console.log(`  Dashboard:  ${result.dashboardUrl}`);
+  if (isHosted) {
+    console.log(`  Dashboard:  ${result.dashboardUrl}`);
+  }
   console.log(`  GitHub:     ${GITHUB_URL}`);
   console.log();
 }
