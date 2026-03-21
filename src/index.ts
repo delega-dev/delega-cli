@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { initCommand } from "./commands/init.js";
 import { loginCommand } from "./commands/login.js";
 import { whoamiCommand } from "./commands/whoami.js";
 import { tasksCommand } from "./commands/tasks.js";
@@ -22,6 +23,7 @@ program
     }
   });
 
+program.addCommand(initCommand);
 program.addCommand(loginCommand);
 program.addCommand(whoamiCommand);
 program.addCommand(tasksCommand);

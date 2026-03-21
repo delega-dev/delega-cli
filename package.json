@@ -7,7 +7,7 @@
     "delega": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-templates.mjs",
     "dev": "ts-node --esm src/index.ts"
   },
   "dependencies": {

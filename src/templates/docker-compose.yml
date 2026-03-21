@@ -1,0 +1,11 @@
+services:
+  delega:
+    image: ghcr.io/delega-dev/delega:latest
+    restart: unless-stopped
+    ports:
+      - "__DELEGA_PORT__:18890"
+    volumes:
+      - delega-data:/app/.delega
+
+volumes:
+  delega-data:
