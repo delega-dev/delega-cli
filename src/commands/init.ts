@@ -62,6 +62,7 @@ interface ApiErrorResponse {
 
 interface SetupResult {
   apiKey: string;
+  apiUrl: string;
   storageLocation: string;
   task: TaskResponse;
   dashboardUrl: string;
@@ -127,6 +128,10 @@ async function promptText(question: string, defaultValue?: string): Promise<stri
       finish(() => reject(new InitCancelledError()));
     });
 
+    rl.on("close", () => {
+      finish(() => reject(new InitCancelledError("Input stream closed.")));
+    });
+
     rl.question(question, (answer) => {
       finish(() => {
         const trimmed = answer.trim();
@@ -186,6 +191,8 @@ async function readResponseBody<T>(response: Response): Promise<T | ApiErrorResp
   }
 }
 
+const FETCH_TIMEOUT_MS = 15_000;
+
 async function requestJson<T>(
   url: string,
   init: RequestInit,
@@ -193,8 +200,11 @@ async function requestJson<T>(
 ): Promise<{ response: Response; data: T | ApiErrorResponse }> {
   let response: Response;
   try {
-    response = await fetch(url, init);
+    response = await fetch(url, { ...init, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   } catch (error) {
+    if (error instanceof DOMException && error.name === "TimeoutError") {
+      throw new UserFacingError(`${actionName} timed out after ${FETCH_TIMEOUT_MS / 1000}s. Check your connection and try again.`);
+    }
     throw new UserFacingError(`${actionName} failed: ${extractMessage(error)}`);
   }
 
@@ -366,7 +376,7 @@ async function waitForHealthy(apiBaseUrl: string): Promise<void> {
   while (Date.now() - startTime < maxWaitMs) {
     attempt += 1;
     try {
-      const response = await fetch(healthUrl);
+      const response = await fetch(healthUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
       if (response.ok) {
         return;
       }
@@ -434,6 +444,7 @@ async function finalizeSetup(rawApiUrl: string, apiKey: string, dashboardUrl: st
 
   return {
     apiKey,
+    apiUrl: rawApiUrl,
     storageLocation,
     task,
     dashboardUrl,
@@ -525,14 +536,20 @@ async function runSelfHostedSetup(): Promise<SetupResult> {
 }
 
 function printSuccess(result: SetupResult): void {
+  const isHosted = result.apiUrl === HOSTED_API_URL;
+  const mcpEnv: Record<string, string> = {
+    DELEGA_API_KEY: result.apiKey,
+  };
+  if (!isHosted) {
+    mcpEnv.DELEGA_API_URL = result.apiUrl;
+  }
+
   const mcpConfig = {
     mcpServers: {
       delega: {
         command: "npx",
         args: ["-y", "@delega-dev/mcp"],
-        env: {
-          DELEGA_API_KEY: result.apiKey,
-        },
+        env: mcpEnv,
       },
     },
   };
