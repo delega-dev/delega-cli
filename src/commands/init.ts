@@ -441,17 +441,23 @@ async function bootstrapLocalAgent(apiBaseUrl: string): Promise<BootstrapAgentRe
 
 async function finalizeSetup(rawApiUrl: string, apiKey: string, dashboardUrl: string): Promise<SetupResult> {
   const apiBaseUrl = normalizeApiUrl(rawApiUrl);
-  const storageLocation = storeApiKey(apiKey);
-  saveApiConfig(rawApiUrl);
-  const task = await createDemoTask(apiBaseUrl, apiKey);
 
-  return {
-    apiKey,
-    apiUrl: rawApiUrl,
-    storageLocation,
-    task,
-    dashboardUrl,
-  };
+  try {
+    // Validate API connectivity before persisting anything to disk.
+    // If this fails, no config or key is saved — the user can retry cleanly.
+    const task = await createDemoTask(apiBaseUrl, apiKey);
+    const storageLocation = storeApiKey(apiKey);
+    saveApiConfig(rawApiUrl);
+
+    return { apiKey, apiUrl: rawApiUrl, storageLocation, task, dashboardUrl };
+  } catch (error) {
+    // The account/agent already exists server-side — print the key so it isn't lost.
+    console.error();
+    console.error(chalk.yellow("Your API key (save it — setup will need to be completed manually):"));
+    console.error(chalk.cyan.bold(`  ${apiKey}`));
+    console.error();
+    throw error;
+  }
 }
 
 async function runHostedSetup(): Promise<SetupResult> {
