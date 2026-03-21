@@ -571,7 +571,7 @@ async function runSelfHostedSetup(): Promise<SetupResult> {
 function printSuccess(result: SetupResult): void {
   const isHosted = result.apiUrl === HOSTED_API_URL;
   const mcpEnv: Record<string, string> = {
-    DELEGA_API_KEY: result.apiKey,
+    DELEGA_AGENT_KEY: result.apiKey,
   };
   if (!isHosted) {
     mcpEnv.DELEGA_API_URL = result.apiUrl;
