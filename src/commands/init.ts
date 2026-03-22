@@ -13,7 +13,7 @@ import {
   persistApiKey,
   saveConfig,
 } from "../config.js";
-import { printBanner } from "../ui.js";
+import { isValidEmail, printBanner } from "../ui.js";
 
 import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
@@ -471,9 +471,14 @@ async function finalizeSetup(rawApiUrl: string, apiKey: string, dashboardUrl: st
 }
 
 async function runHostedSetup(): Promise<SetupResult> {
-  const email = await promptText("Your email: ");
-  if (!email) {
-    throw new UserFacingError("Email is required.");
+  let email = "";
+  while (!isValidEmail(email)) {
+    email = await promptText("Your email: ");
+    if (!email) {
+      console.log(chalk.red("Email is required."));
+    } else if (!isValidEmail(email)) {
+      console.log(chalk.red("Invalid email format. Please try again."));
+    }
   }
 
   const hostedApiBase = normalizeApiUrl(HOSTED_API_URL);

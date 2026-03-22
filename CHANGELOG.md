@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Docker image tag pinned to CLI version instead of hardcoded `1.0.0`
 - Improved error messages across all commands
+- Shared API helper requests now time out after 15 seconds instead of hanging indefinitely
+- Hosted signup validates email format before calling the API
+- `delega status` now uses a single 15-second timeout budget across health and authenticated probes
 
 ## [1.0.10] - 2026-03-22
 

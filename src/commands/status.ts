@@ -45,49 +45,57 @@ export const statusCommand = new Command("status")
       process.exit(1);
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+
     // 3. Hit /health (unauthenticated — just checks connectivity)
     let healthy = false;
     let serverVersion: string | undefined;
-    try {
-      const res = await fetch(apiUrl + "/health", {
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (res.ok) {
-        healthy = true;
-        try {
-          const data = await res.json() as HealthResponse;
-          serverVersion = data.version;
-        } catch { /* health may return empty 200 */ }
-      }
-    } catch {
-      healthy = false;
-    }
-
-    // 4. Hit /agent/me (authenticated) — direct fetch so network errors don't exit
     let me: MeResponse | undefined;
     let stats: Stats | undefined;
-    if (healthy && apiKey) {
-      const authHeaders = { "X-Agent-Key": apiKey, "Content-Type": "application/json" };
-      try {
-        const meRes = await fetch(apiUrl + "/agent/me", {
-          headers: authHeaders,
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (meRes.ok) {
-          me = await meRes.json() as MeResponse;
-        }
-      } catch { /* graceful degradation — show partial output */ }
 
-      // 5. Hit /stats (authenticated) — direct fetch for same reason
+    try {
       try {
-        const statsRes = await fetch(apiUrl + "/stats", {
-          headers: authHeaders,
-          signal: AbortSignal.timeout(10_000),
+        const res = await fetch(apiUrl + "/health", {
+          signal: controller.signal,
         });
-        if (statsRes.ok) {
-          stats = await statsRes.json() as Stats;
+        if (res.ok) {
+          healthy = true;
+          try {
+            const data = await res.json() as HealthResponse;
+            serverVersion = data.version;
+          } catch { /* health may return empty 200 */ }
         }
-      } catch { /* graceful degradation */ }
+      } catch {
+        healthy = false;
+      }
+
+      // 4. Hit /agent/me (authenticated) — direct fetch so network errors don't exit
+      if (healthy && apiKey) {
+        const authHeaders = { "X-Agent-Key": apiKey, "Content-Type": "application/json" };
+        try {
+          const meRes = await fetch(apiUrl + "/agent/me", {
+            headers: authHeaders,
+            signal: controller.signal,
+          });
+          if (meRes.ok) {
+            me = await meRes.json() as MeResponse;
+          }
+        } catch { /* graceful degradation — show partial output */ }
+
+        // 5. Hit /stats (authenticated) — direct fetch for same reason
+        try {
+          const statsRes = await fetch(apiUrl + "/stats", {
+            headers: authHeaders,
+            signal: controller.signal,
+          });
+          if (statsRes.ok) {
+            stats = await statsRes.json() as Stats;
+          }
+        } catch { /* graceful degradation */ }
+      }
+    } finally {
+      clearTimeout(timeout);
     }
 
     // 6. Output
