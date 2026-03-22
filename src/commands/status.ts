@@ -120,7 +120,7 @@ export const statusCommand = new Command("status")
       console.log();
       console.log(chalk.yellow("Could not reach the API. Check:"));
       console.log(chalk.yellow("  - Is the server running? (docker compose ps)"));
-      console.log(chalk.yellow("  - Is the URL correct? (delega status --api-url <url>)"));
+      console.log(chalk.yellow("  - Is the URL correct? (DELEGA_API_URL=<url> delega status)"));
       console.log(chalk.yellow("  - Run `delega init` to reconfigure."));
     }
 

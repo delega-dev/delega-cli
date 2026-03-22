@@ -1,5 +1,4 @@
 import { Command } from "commander";
-import node_readline from "node:readline";
 import { apiCall } from "../api.js";
 import {
   printTable,
@@ -8,6 +7,7 @@ import {
   priorityBadge,
   statusBadge,
   label,
+  confirm,
 } from "../ui.js";
 
 interface Task {
@@ -31,23 +31,6 @@ interface Comment {
   id: string;
   content: string;
   created_at?: string;
-}
-
-function confirm(question: string): Promise<boolean> {
-  const rl = node_readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  return new Promise((resolve) => {
-    rl.on("error", () => {
-      rl.close();
-      resolve(false);
-    });
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim().toLowerCase() === "y");
-    });
-  });
 }
 
 const tasksList = new Command("list")

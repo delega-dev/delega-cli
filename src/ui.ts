@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import node_readline from "node:readline";
 
 const BANNER = `
      ____       __
@@ -90,4 +91,21 @@ export function statusBadge(s: string): string {
 
 export function label(key: string, value: string): void {
   console.log(`${chalk.cyan.bold(key + ":")} ${value}`);
+}
+
+export function confirm(question: string): Promise<boolean> {
+  const rl = node_readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+  return new Promise((resolve) => {
+    rl.on("error", () => {
+      rl.close();
+      resolve(false);
+    });
+    rl.question(question, (answer) => {
+      rl.close();
+      resolve(answer.trim().toLowerCase() === "y");
+    });
+  });
 }

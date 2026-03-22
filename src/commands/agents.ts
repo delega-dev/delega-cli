@@ -1,8 +1,7 @@
 import { Command } from "commander";
-import node_readline from "node:readline";
 import chalk from "chalk";
 import { apiCall } from "../api.js";
-import { printTable, formatDate, label } from "../ui.js";
+import { printTable, formatDate, label, confirm } from "../ui.js";
 
 interface Agent {
   id: string;
@@ -11,23 +10,6 @@ interface Agent {
   active?: boolean;
   created_at?: string;
   api_key?: string;
-}
-
-function confirm(question: string): Promise<boolean> {
-  const rl = node_readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  return new Promise((resolve) => {
-    rl.on("error", () => {
-      rl.close();
-      resolve(false);
-    });
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim().toLowerCase() === "y");
-    });
-  });
 }
 
 const agentsList = new Command("list")

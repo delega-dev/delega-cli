@@ -1,27 +1,10 @@
 import node_fs from "node:fs";
 import node_path from "node:path";
 import node_os from "node:os";
-import node_readline from "node:readline";
 import chalk from "chalk";
 import { Command } from "commander";
 import { deleteStoredApiKey } from "../secret-store.js";
-
-function confirm(question: string): Promise<boolean> {
-  const rl = node_readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-  return new Promise((resolve) => {
-    rl.on("error", () => {
-      rl.close();
-      resolve(false);
-    });
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim().toLowerCase() === "y");
-    });
-  });
-}
+import { confirm } from "../ui.js";
 
 export const resetCommand = new Command("reset")
   .description("Remove local credentials and config")

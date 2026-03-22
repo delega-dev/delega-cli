@@ -36,7 +36,7 @@ function formatApiError(status: number, data: ApiError): string {
   }
 }
 
-function formatNetworkError(err: unknown): string {
+export function formatNetworkError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
 
   if (msg.includes("ECONNREFUSED")) {

@@ -172,9 +172,10 @@ function deleteLinuxSecretTool(): boolean {
 
 function deleteWindowsProtectedFile(): boolean {
   try {
-    if (node_fs.existsSync(WINDOWS_SECRET_PATH)) {
-      node_fs.unlinkSync(WINDOWS_SECRET_PATH);
+    if (!node_fs.existsSync(WINDOWS_SECRET_PATH)) {
+      return false;
     }
+    node_fs.unlinkSync(WINDOWS_SECRET_PATH);
     return true;
   } catch {
     return false;

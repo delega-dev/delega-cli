@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import node_readline from "node:readline";
 import { saveConfig, loadConfig, normalizeApiUrl, persistApiKey } from "../config.js";
+import { formatNetworkError } from "../api.js";
 import { printBanner } from "../ui.js";
 
 interface Agent {
@@ -79,14 +80,7 @@ export const loginCommand = new Command("login")
         },
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("ECONNREFUSED")) {
-        console.error("Cannot reach the Delega API. Is the server running?");
-        console.error("  For self-hosted: docker compose ps");
-        console.error("  For hosted: verify your API URL");
-      } else {
-        console.error(`Connection error: ${msg}`);
-      }
+      console.error(formatNetworkError(err));
       process.exit(1);
     }
 
@@ -116,8 +110,7 @@ export const loginCommand = new Command("login")
           },
         });
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        console.error(`Connection error: ${msg}`);
+        console.error(formatNetworkError(err));
         process.exit(1);
       }
 
