@@ -19,6 +19,10 @@ function confirm(question: string): Promise<boolean> {
     output: process.stdout,
   });
   return new Promise((resolve) => {
+    rl.on("error", () => {
+      rl.close();
+      resolve(false);
+    });
     rl.question(question, (answer) => {
       rl.close();
       resolve(answer.trim().toLowerCase() === "y");

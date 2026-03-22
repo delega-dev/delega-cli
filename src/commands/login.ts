@@ -80,7 +80,13 @@ export const loginCommand = new Command("login")
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`Connection error: ${msg}`);
+      if (msg.includes("ECONNREFUSED")) {
+        console.error("Cannot reach the Delega API. Is the server running?");
+        console.error("  For self-hosted: docker compose ps");
+        console.error("  For hosted: verify your API URL");
+      } else {
+        console.error(`Connection error: ${msg}`);
+      }
       process.exit(1);
     }
 

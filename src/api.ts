@@ -11,6 +11,50 @@ export interface ApiResponse<T = unknown> {
   data: T | ApiError;
 }
 
+function formatApiError(status: number, data: ApiError): string {
+  const serverMsg = data.error || data.message;
+
+  switch (status) {
+    case 401:
+      return "Authentication failed. Your API key may be invalid or expired.\n  Run: delega login";
+    case 403:
+      return `Permission denied.${serverMsg ? " " + serverMsg : ""}\n  Check your agent's permissions or contact your admin.`;
+    case 404:
+      return `Resource not found.${serverMsg ? " " + serverMsg : ""}`;
+    case 409:
+      return serverMsg || "Conflict — the resource already exists or was modified.";
+    case 422:
+      return `Invalid request.${serverMsg ? " " + serverMsg : ""}\n  Check your command arguments.`;
+    case 429:
+      return "Rate limited. Wait a moment and try again.";
+    case 500:
+    case 502:
+    case 503:
+      return `Server error (${status}).${serverMsg ? " " + serverMsg : ""}\n  The API may be temporarily unavailable. Try again shortly.`;
+    default:
+      return serverMsg || `Request failed with status ${status}.`;
+  }
+}
+
+function formatNetworkError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes("ECONNREFUSED")) {
+    return "Connection refused. Is the Delega server running?\n  For self-hosted: docker compose ps\n  For hosted: check https://status.delega.dev";
+  }
+  if (msg.includes("ENOTFOUND") || msg.includes("getaddrinfo")) {
+    return "Could not resolve the API hostname. Check your network connection and API URL.";
+  }
+  if (msg.includes("ETIMEDOUT") || msg.includes("timeout") || msg.includes("TimeoutError")) {
+    return "Connection timed out. Check your network connection.\n  If self-hosted, verify the server is running: docker compose ps";
+  }
+  if (msg.includes("CERT") || msg.includes("certificate")) {
+    return `TLS certificate error: ${msg}\n  If using a self-signed cert, set NODE_TLS_REJECT_UNAUTHORIZED=0 (not recommended for production).`;
+  }
+
+  return `Connection error: ${msg}`;
+}
+
 export async function apiRequest<T = unknown>(
   method: string,
   path: string,
@@ -47,8 +91,7 @@ export async function apiRequest<T = unknown>(
   try {
     res = await fetch(url, options);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Connection error: ${msg}`);
+    console.error(formatNetworkError(err));
     process.exit(1);
   }
 
@@ -74,14 +117,12 @@ export async function apiCall<T = unknown>(
 ): Promise<T> {
   const result = await apiRequest<T>(method, path, body);
   if (result.status === 401) {
-    console.error("Authentication failed. Run: delega login");
+    console.error(formatApiError(401, result.data as ApiError));
     process.exit(1);
   }
 
   if (!result.ok) {
-    const errData = result.data as ApiError;
-    const msg = errData.error || errData.message || `Request failed (${result.status})`;
-    console.error(`Error: ${msg}`);
+    console.error(formatApiError(result.status, result.data as ApiError));
     process.exit(1);
   }
 

@@ -21,6 +21,9 @@ interface Task {
   updated_at?: string;
   completed_at?: string;
   assigned_to_agent_id?: string;
+  delegated_from_task_id?: string;
+  parent_task_id?: string;
+  subtasks?: Task[];
   comments?: Comment[];
 }
 
@@ -36,6 +39,10 @@ function confirm(question: string): Promise<boolean> {
     output: process.stdout,
   });
   return new Promise((resolve) => {
+    rl.on("error", () => {
+      rl.close();
+      resolve(false);
+    });
     rl.question(question, (answer) => {
       rl.close();
       resolve(answer.trim().toLowerCase() === "y");
@@ -69,12 +76,13 @@ const tasksList = new Command("list")
       return;
     }
 
-    const headers = ["ID", "Priority", "Status", "Content"];
+    const headers = ["ID", "Pri", "Status", "Delegated To", "Content"];
     const rows = tasks.map((t) => [
       formatId(t.id),
       priorityBadge(t.priority),
       statusBadge(t.status),
-      t.content.length > 50 ? t.content.slice(0, 47) + "..." : t.content,
+      t.assigned_to_agent_id ? formatId(t.assigned_to_agent_id) : "—",
+      t.content.length > 40 ? t.content.slice(0, 37) + "..." : t.content,
     ]);
 
     printTable(headers, rows);
@@ -130,7 +138,9 @@ const tasksShow = new Command("show")
       label("Labels", labels.join(", "));
     }
     if (task.due_date) label("Due", formatDate(task.due_date));
-    if (task.assigned_to_agent_id) label("Assigned To", task.assigned_to_agent_id);
+    if (task.assigned_to_agent_id) label("Delegated To", task.assigned_to_agent_id);
+    if (task.delegated_from_task_id) label("Delegated From", task.delegated_from_task_id);
+    if (task.parent_task_id) label("Parent Task", task.parent_task_id);
     label("Created", formatDate(task.created_at || ""));
     if (task.updated_at) label("Updated", formatDate(task.updated_at));
     if (task.completed_at) label("Completed", formatDate(task.completed_at));

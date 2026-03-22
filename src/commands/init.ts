@@ -15,7 +15,11 @@ import {
 } from "../config.js";
 import { printBanner } from "../ui.js";
 
-const DELEGA_DOCKER_TAG = "1.0.0";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const pkg = require("../../package.json") as { version: string };
+
+const DELEGA_DOCKER_TAG = pkg.version;
 const HOSTED_API_URL = "https://api.delega.dev";
 const DEFAULT_LOCAL_PORT = 18890;
 const DEMO_TASK_CONTENT = "Review the Delega quickstart docs and try the API";
@@ -366,7 +370,8 @@ function startDockerCompose(composeDir: string): void {
       throw new InitCancelledError();
     }
     throw new UserFacingError(
-      "Docker failed to start Delega. Make sure Docker Desktop is running, then try again.",
+      `Docker failed to start Delega (image tag: ${DELEGA_DOCKER_TAG}). Make sure Docker Desktop is running, then try again.\n` +
+      "  Check logs with: docker compose logs",
     );
   }
 }
@@ -722,6 +727,16 @@ async function runInit(): Promise<void> {
 
 export const initCommand = new Command("init")
   .description("Set up Delega in about 30 seconds")
+  .addHelpText("after", `
+Examples:
+  $ delega init                     Interactive setup wizard
+  $ delega init --api-url <url>     Use a custom API URL
+
+This command walks you through:
+  1. Choosing hosted (api.delega.dev) or self-hosted (Docker) deployment
+  2. Creating your account and first agent
+  3. Configuring your MCP client (Claude, Cursor, VS Code, etc.)
+`)
   .action(async () => {
     try {
       await runInit();
