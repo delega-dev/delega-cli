@@ -1,7 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { getApiKey, getApiUrl } from "../config.js";
-import { apiRequest } from "../api.js";
 import { label } from "../ui.js";
 
 interface HealthResponse {
@@ -68,22 +67,33 @@ export const statusCommand = new Command("status")
       healthy = false;
     }
 
-    // 4. Hit /agent/me (authenticated)
+    // 4. Hit /agent/me (authenticated) — direct fetch so network errors don't exit
+    const authHeaders = { "X-Agent-Key": apiKey, "Content-Type": "application/json" };
     let me: MeResponse | undefined;
     if (healthy) {
-      const meResult = await apiRequest<MeResponse>("GET", "/agent/me");
-      if (meResult.ok) {
-        me = meResult.data as MeResponse;
-      }
+      try {
+        const meRes = await fetch(apiUrl + "/agent/me", {
+          headers: authHeaders,
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (meRes.ok) {
+          me = await meRes.json() as MeResponse;
+        }
+      } catch { /* graceful degradation — show partial output */ }
     }
 
-    // 5. Hit /stats (authenticated)
+    // 5. Hit /stats (authenticated) — direct fetch for same reason
     let stats: Stats | undefined;
     if (healthy) {
-      const statsResult = await apiRequest<Stats>("GET", "/stats");
-      if (statsResult.ok) {
-        stats = statsResult.data as Stats;
-      }
+      try {
+        const statsRes = await fetch(apiUrl + "/stats", {
+          headers: authHeaders,
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (statsRes.ok) {
+          stats = await statsRes.json() as Stats;
+        }
+      } catch { /* graceful degradation */ }
     }
 
     // 6. Output

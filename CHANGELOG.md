@@ -19,20 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker image tag pinned to CLI version instead of hardcoded `1.0.0`
 - Improved error messages across all commands
 
-## [1.0.10] - 2026-03-18
-
-### Changed
-- Version bump (no functional changes)
-
-## [1.0.9] - 2026-03-18
+## [1.0.10] - 2026-03-22
 
 ### Added
-- MCP client selector in `delega init` (Claude, Cursor, Windsurf, VS Code, Continue, Codex, OpenClaw)
+- MCP client selector in `delega init` (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code, Continue, Codex, OpenClaw)
 
-## [1.0.8] - 2026-03-17
+### Fixed
+- Codex MCP config outputs correct TOML format
+- VS Code MCP config includes required `type: "stdio"` field
+
+## [1.0.9] - 2026-03-22
 
 ### Fixed
 - `delega init` MCP config outputs `DELEGA_AGENT_KEY` (not `DELEGA_API_KEY`)
+
+## [1.0.8] - 2026-03-17
 
 ### Changed
 - Documentation features `delega init` as the primary onboarding path
