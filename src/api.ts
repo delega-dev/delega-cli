@@ -30,6 +30,7 @@ function formatApiError(status: number, data: ApiError): string {
     case 500:
     case 502:
     case 503:
+    case 504:
       return `Server error (${status}).${serverMsg ? " " + serverMsg : ""}\n  The API may be temporarily unavailable. Try again shortly.`;
     default:
       return serverMsg || `Request failed with status ${status}.`;

@@ -33,12 +33,8 @@ export const statusCommand = new Command("status")
   .description("Check connection and show environment info")
   .option("--json", "Output raw JSON")
   .action(async (opts) => {
-    // 1. Check for API key
+    // 1. Check for API key (non-fatal — we can still show health info)
     const apiKey = getApiKey();
-    if (!apiKey) {
-      console.error("Not authenticated. Run: delega init");
-      process.exit(1);
-    }
 
     // 2. Resolve API URL
     let apiUrl: string;
@@ -68,9 +64,10 @@ export const statusCommand = new Command("status")
     }
 
     // 4. Hit /agent/me (authenticated) — direct fetch so network errors don't exit
-    const authHeaders = { "X-Agent-Key": apiKey, "Content-Type": "application/json" };
     let me: MeResponse | undefined;
-    if (healthy) {
+    let stats: Stats | undefined;
+    if (healthy && apiKey) {
+      const authHeaders = { "X-Agent-Key": apiKey, "Content-Type": "application/json" };
       try {
         const meRes = await fetch(apiUrl + "/agent/me", {
           headers: authHeaders,
@@ -80,11 +77,8 @@ export const statusCommand = new Command("status")
           me = await meRes.json() as MeResponse;
         }
       } catch { /* graceful degradation — show partial output */ }
-    }
 
-    // 5. Hit /stats (authenticated) — direct fetch for same reason
-    let stats: Stats | undefined;
-    if (healthy) {
+      // 5. Hit /stats (authenticated) — direct fetch for same reason
       try {
         const statsRes = await fetch(apiUrl + "/stats", {
           headers: authHeaders,
@@ -108,6 +102,12 @@ export const statusCommand = new Command("status")
     label("API", apiUrl);
     label("Status", healthy ? chalk.green("connected") : chalk.red("unreachable"));
     if (serverVersion) label("Server Version", serverVersion);
+
+    if (!apiKey) {
+      console.log();
+      console.log(chalk.yellow("Not authenticated. Run: delega init"));
+      console.log(chalk.yellow("Agent and task info unavailable without an API key."));
+    }
 
     // Agent info
     if (me?.agent) {
