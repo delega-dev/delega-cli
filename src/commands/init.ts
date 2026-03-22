@@ -474,7 +474,9 @@ async function runHostedSetup(): Promise<SetupResult> {
   let email = "";
   while (!isValidEmail(email)) {
     email = await promptText("Your email: ");
-    if (!isValidEmail(email)) {
+    if (!email) {
+      console.log(chalk.red("Email is required."));
+    } else if (!isValidEmail(email)) {
       console.log(chalk.red("Invalid email format. Please try again."));
     }
   }
