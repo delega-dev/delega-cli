@@ -568,7 +568,63 @@ async function runSelfHostedSetup(): Promise<SetupResult> {
   return finalizeSetup(rawApiUrl, agent.api_key as string, rawApiUrl);
 }
 
-function printSuccess(result: SetupResult): void {
+interface McpClient {
+  label: string;
+  filePath: string;
+  buildConfig: (env: Record<string, string>) => Record<string, unknown>;
+}
+
+const DELEGA_SERVER_ENTRY = {
+  command: "npx",
+  args: ["-y", "@delega-dev/mcp"],
+};
+
+const MCP_CLIENTS: McpClient[] = [
+  {
+    label: "Claude Code / Claude Desktop",
+    filePath: "claude_desktop_config.json or project .mcp.json",
+    buildConfig: (env) => ({ mcpServers: { delega: { ...DELEGA_SERVER_ENTRY, env } } }),
+  },
+  {
+    label: "Cursor",
+    filePath: ".cursor/mcp.json",
+    buildConfig: (env) => ({ mcpServers: { delega: { ...DELEGA_SERVER_ENTRY, env } } }),
+  },
+  {
+    label: "Windsurf",
+    filePath: "~/.codeium/windsurf/mcp_config.json",
+    buildConfig: (env) => ({ mcpServers: { delega: { ...DELEGA_SERVER_ENTRY, env } } }),
+  },
+  {
+    label: "VS Code (Copilot)",
+    filePath: ".vscode/mcp.json",
+    buildConfig: (env) => ({ servers: { delega: { ...DELEGA_SERVER_ENTRY, env } } }),
+  },
+  {
+    label: "Continue",
+    filePath: "~/.continue/config.json",
+    buildConfig: (env) => ({
+      experimental: { modelContextProtocol: { servers: { delega: { ...DELEGA_SERVER_ENTRY, env } } } },
+    }),
+  },
+  {
+    label: "Codex",
+    filePath: "codex.json",
+    buildConfig: (env) => ({ mcpServers: { delega: { ...DELEGA_SERVER_ENTRY, env } } }),
+  },
+  {
+    label: "OpenClaw",
+    filePath: "~/.openclaw/openclaw.json",
+    buildConfig: (env) => ({ mcp: { servers: { delega: { ...DELEGA_SERVER_ENTRY, env } } } }),
+  },
+  {
+    label: "Other / manual",
+    filePath: "your MCP client config",
+    buildConfig: (env) => ({ mcpServers: { delega: { ...DELEGA_SERVER_ENTRY, env } } }),
+  },
+];
+
+async function printSuccess(result: SetupResult): Promise<void> {
   const isHosted = result.apiUrl === HOSTED_API_URL;
   const mcpEnv: Record<string, string> = {
     DELEGA_AGENT_KEY: result.apiKey,
@@ -576,16 +632,6 @@ function printSuccess(result: SetupResult): void {
   if (!isHosted) {
     mcpEnv.DELEGA_API_URL = result.apiUrl;
   }
-
-  const mcpConfig = {
-    mcpServers: {
-      delega: {
-        command: "npx",
-        args: ["-y", "@delega-dev/mcp"],
-        env: mcpEnv,
-      },
-    },
-  };
 
   console.log();
   printKeyBox(result.apiKey, result.storageLocation);
@@ -597,9 +643,16 @@ function printSuccess(result: SetupResult): void {
   console.log(`  ID: ${result.task.id}`);
   console.log();
 
+  const clientIndex = await promptChoice(
+    "Which MCP client do you use?",
+    MCP_CLIENTS.map((c) => c.label),
+  );
+  const client = MCP_CLIENTS[clientIndex];
+  const mcpConfig = client.buildConfig(mcpEnv);
+
   printSection("MCP Configuration");
   console.log();
-  console.log("  Paste into claude_desktop_config.json:");
+  console.log(`  Paste into ${chalk.cyan(client.filePath)}:`);
   console.log();
   console.log(indent(JSON.stringify(mcpConfig, null, 2), 2));
   console.log();
@@ -644,7 +697,7 @@ async function runInit(): Promise<void> {
     ? await runHostedSetup()
     : await runSelfHostedSetup();
 
-  printSuccess(result);
+  await printSuccess(result);
 }
 
 export const initCommand = new Command("init")
