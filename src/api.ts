@@ -83,7 +83,11 @@ export async function apiRequest<T = unknown>(
     "Content-Type": "application/json",
   };
 
-  const options: RequestInit = { method, headers };
+  const options: RequestInit = {
+    method,
+    headers,
+    signal: AbortSignal.timeout(15_000),
+  };
   if (body !== undefined) {
     options.body = JSON.stringify(body);
   }

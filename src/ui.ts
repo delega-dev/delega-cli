@@ -93,6 +93,10 @@ export function label(key: string, value: string): void {
   console.log(`${chalk.cyan.bold(key + ":")} ${value}`);
 }
 
+export function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 export function confirm(question: string): Promise<boolean> {
   const rl = node_readline.createInterface({
     input: process.stdin,
