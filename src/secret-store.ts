@@ -159,6 +159,17 @@ function deleteMacosKeychain(): boolean {
 function deleteLinuxSecretTool(): boolean {
   if (!isLinuxSecretToolAvailable()) return false;
   try {
+    // `secret-tool lookup` exits non-zero when no key exists; `clear` always exits 0.
+    // Check first so we return false (not found) vs true (deleted).
+    node_child_process.execFileSync(
+      "secret-tool",
+      ["lookup", "service", SERVICE_NAME, "account", ACCOUNT_NAME],
+      { stdio: "ignore" },
+    );
+  } catch {
+    return false; // key not in keyring
+  }
+  try {
     node_child_process.execFileSync(
       "secret-tool",
       ["clear", "service", SERVICE_NAME, "account", ACCOUNT_NAME],
