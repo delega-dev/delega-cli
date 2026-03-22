@@ -143,6 +143,63 @@ export function loadStoredApiKey(): string | undefined {
   return undefined;
 }
 
+function deleteMacosKeychain(): boolean {
+  try {
+    node_child_process.execFileSync(
+      "security",
+      ["delete-generic-password", "-a", ACCOUNT_NAME, "-s", SERVICE_NAME],
+      { stdio: "ignore" },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function deleteLinuxSecretTool(): boolean {
+  if (!isLinuxSecretToolAvailable()) return false;
+  try {
+    // `secret-tool lookup` exits non-zero when no key exists; `clear` always exits 0.
+    // Check first so we return false (not found) vs true (deleted).
+    node_child_process.execFileSync(
+      "secret-tool",
+      ["lookup", "service", SERVICE_NAME, "account", ACCOUNT_NAME],
+      { stdio: "ignore" },
+    );
+  } catch {
+    return false; // key not in keyring
+  }
+  try {
+    node_child_process.execFileSync(
+      "secret-tool",
+      ["clear", "service", SERVICE_NAME, "account", ACCOUNT_NAME],
+      { stdio: "ignore" },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function deleteWindowsProtectedFile(): boolean {
+  try {
+    if (!node_fs.existsSync(WINDOWS_SECRET_PATH)) {
+      return false;
+    }
+    node_fs.unlinkSync(WINDOWS_SECRET_PATH);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function deleteStoredApiKey(): boolean {
+  if (process.platform === "darwin") return deleteMacosKeychain();
+  if (process.platform === "linux") return deleteLinuxSecretTool();
+  if (process.platform === "win32") return deleteWindowsProtectedFile();
+  return false;
+}
+
 export function storeApiKey(apiKey: string): string | undefined {
   if (process.platform === "darwin") {
     writeMacosKeychain(apiKey);

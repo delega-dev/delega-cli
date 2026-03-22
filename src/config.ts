@@ -73,11 +73,15 @@ export function normalizeApiUrl(rawUrl: string): string {
   try {
     parsed = new URL(rawUrl);
   } catch {
-    throw new Error("Invalid Delega API URL");
+    throw new Error(
+      `Invalid Delega API URL: "${rawUrl}". Expected a valid URL like https://api.delega.dev or http://localhost:18890`,
+    );
   }
 
   if (parsed.protocol !== "https:" && !isLocalApiHost(parsed.hostname)) {
-    throw new Error("Delega API URL must use HTTPS unless it points to localhost");
+    throw new Error(
+      `Delega API URL must use HTTPS for remote servers. Got: "${rawUrl}"\n  Use http:// only for localhost. For remote servers, use https://.`,
+    );
   }
 
   parsed.search = "";

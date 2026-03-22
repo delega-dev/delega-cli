@@ -28,7 +28,8 @@
     "dist",
     "LICENSE",
     "README.md",
-    "SECURITY.md"
+    "SECURITY.md",
+    "CHANGELOG.md"
   ],
   "keywords": [
     "delega",
