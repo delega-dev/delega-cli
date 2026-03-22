@@ -571,7 +571,9 @@ async function runSelfHostedSetup(): Promise<SetupResult> {
 interface McpClient {
   label: string;
   filePath: string;
+  format?: "json" | "toml";
   buildConfig: (env: Record<string, string>) => Record<string, unknown>;
+  buildToml?: (env: Record<string, string>) => string;
 }
 
 const DELEGA_SERVER_ENTRY = {
@@ -598,7 +600,7 @@ const MCP_CLIENTS: McpClient[] = [
   {
     label: "VS Code (Copilot)",
     filePath: ".vscode/mcp.json",
-    buildConfig: (env) => ({ servers: { delega: { ...DELEGA_SERVER_ENTRY, env } } }),
+    buildConfig: (env) => ({ servers: { delega: { type: "stdio", ...DELEGA_SERVER_ENTRY, env } } }),
   },
   {
     label: "Continue",
@@ -609,8 +611,22 @@ const MCP_CLIENTS: McpClient[] = [
   },
   {
     label: "Codex",
-    filePath: "codex.json",
-    buildConfig: (env) => ({ mcpServers: { delega: { ...DELEGA_SERVER_ENTRY, env } } }),
+    filePath: "~/.codex/config.toml",
+    format: "toml",
+    buildConfig: (env) => ({}),
+    buildToml: (env) => {
+      const lines = [
+        "[mcp_servers.delega]",
+        `command = "npx"`,
+        `args = ["-y", "@delega-dev/mcp"]`,
+        "",
+        "[mcp_servers.delega.env]",
+      ];
+      for (const [key, value] of Object.entries(env)) {
+        lines.push(`${key} = "${value}"`);
+      }
+      return lines.join("\n");
+    },
   },
   {
     label: "OpenClaw",
@@ -648,13 +664,17 @@ async function printSuccess(result: SetupResult): Promise<void> {
     MCP_CLIENTS.map((c) => c.label),
   );
   const client = MCP_CLIENTS[clientIndex];
-  const mcpConfig = client.buildConfig(mcpEnv);
 
   printSection("MCP Configuration");
   console.log();
   console.log(`  Paste into ${chalk.cyan(client.filePath)}:`);
   console.log();
-  console.log(indent(JSON.stringify(mcpConfig, null, 2), 2));
+  if (client.format === "toml" && client.buildToml) {
+    console.log(indent(client.buildToml(mcpEnv), 2));
+  } else {
+    const mcpConfig = client.buildConfig(mcpEnv);
+    console.log(indent(JSON.stringify(mcpConfig, null, 2), 2));
+  }
   console.log();
 
   printSection("What's next");
