@@ -15,14 +15,25 @@ interface MeResponse {
 }
 
 async function promptSecret(question: string): Promise<string> {
-  const mutedOutput = {
-    muted: false,
-    write(chunk: string) {
-      if (!this.muted || chunk.includes(question)) {
-        process.stdout.write(chunk);
-      }
-    },
-  };
+  // Wrap process.stdout so we can mute the echoed password while keeping
+  // all EventEmitter methods (on, removeListener, etc.) that Node's readline
+  // expects. Node 24+ calls output.on('resize', ...) during construction.
+  const mutedOutput = new (await import("node:stream")).PassThrough({
+    decodeStrings: false,
+  });
+  let muted = false;
+  mutedOutput.on("data", (chunk: Buffer | string) => {
+    const text = typeof chunk === "string" ? chunk : chunk.toString("utf-8");
+    if (!muted || text.includes(question)) {
+      process.stdout.write(text);
+    }
+  });
+  // Forward resize events from stdout so readline can track terminal width.
+  const onResize = () => mutedOutput.emit("resize");
+  process.stdout.on("resize", onResize);
+  // Expose columns/rows so readline doesn't error when checking terminal size.
+  Object.defineProperty(mutedOutput, "columns", { get: () => process.stdout.columns });
+  Object.defineProperty(mutedOutput, "rows", { get: () => process.stdout.rows });
 
   const rl = node_readline.createInterface({
     input: process.stdin,
@@ -30,11 +41,13 @@ async function promptSecret(question: string): Promise<string> {
     terminal: true,
   });
 
-  mutedOutput.muted = true;
+  muted = true;
 
   return new Promise((resolve) => {
     rl.question(question, (answer) => {
       rl.close();
+      process.stdout.removeListener("resize", onResize);
+      mutedOutput.destroy();
       process.stdout.write("\n");
       resolve(answer.trim());
     });
