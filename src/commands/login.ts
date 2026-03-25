@@ -43,6 +43,11 @@ async function promptSecret(question: string): Promise<string> {
 
 export const loginCommand = new Command("login")
   .description("Authenticate with the Delega API")
+  .addHelpText("after", `
+Examples:
+  $ delega login                          Interactive API key prompt
+  $ DELEGA_API_KEY=dlg_xxx delega whoami  Authenticate via env var instead
+`)
   .action(async () => {
     printBanner();
 

@@ -25,6 +25,10 @@ interface MeResponse {
 
 export const whoamiCommand = new Command("whoami")
   .description("Show current authenticated agent")
+  .addHelpText("after", `
+Examples:
+  $ delega whoami                         Show current agent identity
+`)
   .action(async () => {
     const me = await apiRequest<MeResponse>("GET", "/agent/me");
     if (me.ok) {
