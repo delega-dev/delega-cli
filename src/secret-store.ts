@@ -41,18 +41,13 @@ function readMacosKeychain(): string | undefined {
 }
 
 function writeMacosKeychain(apiKey: string): void {
-  const tmpPath = node_path.join(node_os.tmpdir(), `delega-key-${process.pid}`);
-  try {
-    node_fs.writeFileSync(tmpPath, apiKey, { encoding: "utf-8", mode: 0o600 });
-    node_child_process.execSync(
-      `security add-generic-password -U -a "${ACCOUNT_NAME}" -s "${SERVICE_NAME}" -w "$(cat '${tmpPath}')"`,
-      { stdio: "ignore" },
-    );
-  } finally {
-    try {
-      node_fs.unlinkSync(tmpPath);
-    } catch {}
-  }
+  // Pass -w without a value so `security` reads the password interactively from stdin.
+  // We pipe the key via stdin to avoid exposing it in process argv (visible in `ps`).
+  node_child_process.execFileSync(
+    "security",
+    ["add-generic-password", "-U", "-a", ACCOUNT_NAME, "-s", SERVICE_NAME, "-w"],
+    { input: apiKey, encoding: "utf-8", stdio: ["pipe", "ignore", "ignore"] },
+  );
 }
 
 function readLinuxSecretTool(): string | undefined {
