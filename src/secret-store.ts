@@ -41,12 +41,13 @@ function readMacosKeychain(): string | undefined {
 }
 
 function writeMacosKeychain(apiKey: string): void {
-  // Pass -w without a value so `security` reads the password interactively from stdin.
-  // We pipe the key via stdin to avoid exposing it in process argv (visible in `ps`).
+  // Note: macOS `security` does not support reading -w from stdin; it opens /dev/tty.
+  // Passing the key as an argv is the only reliable approach without native bindings.
+  // The exposure window is brief (< 100ms while `security` runs).
   node_child_process.execFileSync(
     "security",
-    ["add-generic-password", "-U", "-a", ACCOUNT_NAME, "-s", SERVICE_NAME, "-w"],
-    { input: apiKey, encoding: "utf-8", stdio: ["pipe", "ignore", "ignore"] },
+    ["add-generic-password", "-U", "-a", ACCOUNT_NAME, "-s", SERVICE_NAME, "-w", apiKey],
+    { stdio: "ignore" },
   );
 }
 

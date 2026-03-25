@@ -15,41 +15,39 @@ interface MeResponse {
 }
 
 async function promptSecret(question: string): Promise<string> {
-  // Wrap process.stdout so we can mute the echoed password while keeping
-  // all EventEmitter methods (on, removeListener, etc.) that Node's readline
-  // expects. Node 24+ calls output.on('resize', ...) during construction.
-  const mutedOutput = new (await import("node:stream")).PassThrough({
-    decodeStrings: false,
-  });
-  let muted = false;
-  mutedOutput.on("data", (chunk: Buffer | string) => {
-    const text = typeof chunk === "string" ? chunk : chunk.toString("utf-8");
-    if (!muted || text.includes(question)) {
-      process.stdout.write(text);
+  // Print the prompt ourselves, then read with echo disabled.
+  // This avoids needing a fake output stream (which breaks on Node 24+
+  // where readline calls output.on('resize', ...) during construction).
+  process.stdout.write(question);
+
+  return new Promise((resolve, reject) => {
+    const rl = node_readline.createInterface({
+      input: process.stdin,
+      // Use process.stdout as output so all EventEmitter methods exist,
+      // but set terminal: false so readline won't echo input or write prompts.
+      output: process.stdout,
+      terminal: false,
+    });
+
+    // Disable raw echo at the TTY level so keystrokes aren't visible.
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode?.(false);
     }
-  });
-  // Forward resize events from stdout so readline can track terminal width.
-  const onResize = () => mutedOutput.emit("resize");
-  process.stdout.on("resize", onResize);
-  // Expose columns/rows so readline doesn't error when checking terminal size.
-  Object.defineProperty(mutedOutput, "columns", { get: () => process.stdout.columns });
-  Object.defineProperty(mutedOutput, "rows", { get: () => process.stdout.rows });
 
-  const rl = node_readline.createInterface({
-    input: process.stdin,
-    output: mutedOutput as unknown as NodeJS.WritableStream,
-    terminal: true,
-  });
-
-  muted = true;
-
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
+    rl.on("line", (answer) => {
       rl.close();
-      process.stdout.removeListener("resize", onResize);
-      mutedOutput.destroy();
       process.stdout.write("\n");
       resolve(answer.trim());
+    });
+
+    rl.on("close", () => {
+      resolve("");
+    });
+
+    rl.on("SIGINT", () => {
+      rl.close();
+      process.stdout.write("\n");
+      reject(new Error("Cancelled."));
     });
   });
 }
