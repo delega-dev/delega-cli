@@ -15,42 +15,57 @@ interface MeResponse {
 }
 
 async function promptSecret(question: string): Promise<string> {
-  // Wrap process.stdout so we can mute the echoed password while keeping
-  // all EventEmitter methods (on, removeListener, etc.) that Node's readline
-  // expects. Node 24+ calls output.on('resize', ...) during construction.
-  const mutedOutput = new (await import("node:stream")).PassThrough({
-    decodeStrings: false,
-  });
-  let muted = false;
-  mutedOutput.on("data", (chunk: Buffer | string) => {
-    const text = typeof chunk === "string" ? chunk : chunk.toString("utf-8");
-    if (!muted || text.includes(question)) {
-      process.stdout.write(text);
+  // Read a secret without echoing keystrokes.
+  // We avoid readline entirely — Node 24's readline requires a full
+  // EventEmitter output stream, and fake streams caused duplicate prompts.
+  // Instead: raw mode + manual character collection. Simple and portable.
+  process.stdout.write(question);
+
+  return new Promise((resolve, reject) => {
+    if (!process.stdin.isTTY) {
+      // Non-interactive (piped input): fall back to line reading.
+      let data = "";
+      process.stdin.setEncoding("utf-8");
+      process.stdin.on("data", (chunk: string) => { data += chunk; });
+      process.stdin.on("end", () => resolve(data.split("\n")[0].trim()));
+      process.stdin.resume();
+      return;
     }
-  });
-  // Forward resize events from stdout so readline can track terminal width.
-  const onResize = () => mutedOutput.emit("resize");
-  process.stdout.on("resize", onResize);
-  // Expose columns/rows so readline doesn't error when checking terminal size.
-  Object.defineProperty(mutedOutput, "columns", { get: () => process.stdout.columns });
-  Object.defineProperty(mutedOutput, "rows", { get: () => process.stdout.rows });
 
-  const rl = node_readline.createInterface({
-    input: process.stdin,
-    output: mutedOutput as unknown as NodeJS.WritableStream,
-    terminal: true,
-  });
+    let input = "";
+    const wasRaw = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding("utf-8");
 
-  muted = true;
+    const onData = (key: string) => {
+      const code = key.charCodeAt(0);
+      if (key === "\r" || key === "\n") {
+        // Enter — done
+        cleanup();
+        process.stdout.write("\n");
+        resolve(input.trim());
+      } else if (code === 3) {
+        // Ctrl+C
+        cleanup();
+        process.stdout.write("\n");
+        reject(new Error("Cancelled."));
+      } else if (code === 127 || code === 8) {
+        // Backspace / Delete
+        input = input.slice(0, -1);
+      } else if (code >= 32) {
+        // Printable character
+        input += key;
+      }
+    };
 
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      process.stdout.removeListener("resize", onResize);
-      mutedOutput.destroy();
-      process.stdout.write("\n");
-      resolve(answer.trim());
-    });
+    const cleanup = () => {
+      process.stdin.removeListener("data", onData);
+      process.stdin.setRawMode(wasRaw ?? false);
+      process.stdin.pause();
+    };
+
+    process.stdin.on("data", onData);
   });
 }
 
