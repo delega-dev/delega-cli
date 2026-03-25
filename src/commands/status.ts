@@ -32,6 +32,11 @@ interface Stats {
 export const statusCommand = new Command("status")
   .description("Check connection and show environment info")
   .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega status
+  $ delega status --json                  Output as JSON (for scripting)
+`)
   .action(async (opts) => {
     // 1. Check for API key (non-fatal — we can still show health info)
     const apiKey = getApiKey();

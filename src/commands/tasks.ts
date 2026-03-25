@@ -38,6 +38,14 @@ const tasksList = new Command("list")
   .option("--completed", "Include completed tasks")
   .option("--limit <n>", "Limit results", parseInt)
   .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks list                     List pending tasks
+  $ delega tasks list --completed         Include completed tasks
+  $ delega tasks list --limit 5           Show only 5 tasks
+  $ delega tasks list --json              Output as JSON (for scripting)
+  $ delega tasks list --json | jq '.[0]'  Get first task with jq
+`)
   .action(async (opts) => {
     let path = "/tasks";
     const params: string[] = [];
@@ -78,6 +86,14 @@ const tasksCreate = new Command("create")
   .option("--labels <labels>", "Comma-separated labels")
   .option("--due <date>", "Due date (YYYY-MM-DD)")
   .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks create "Fix login bug"
+  $ delega tasks create "Deploy v2" --priority 1
+  $ delega tasks create "Write tests" --labels "testing,backend"
+  $ delega tasks create "Ship feature" --due 2025-12-31
+  $ delega tasks create "Audit deps" --json          Get created task as JSON
+`)
   .action(async (content: string, opts) => {
     const body: Record<string, unknown> = { content };
     if (opts.priority) body.priority = opts.priority;
@@ -103,6 +119,11 @@ const tasksShow = new Command("show")
   .description("Show task details")
   .argument("<id>", "Task ID")
   .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks show abc123
+  $ delega tasks show abc123 --json       Get full task details as JSON
+`)
   .action(async (id: string, opts) => {
     const task = await apiCall<Task>("GET", `/tasks/${id}`);
 
@@ -141,21 +162,56 @@ const tasksShow = new Command("show")
 const tasksComplete = new Command("complete")
   .description("Mark a task as completed")
   .argument("<id>", "Task ID")
-  .action(async (id: string) => {
-    await apiCall("POST", `/tasks/${id}/complete`);
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks complete abc123
+  $ delega tasks complete abc123 --json   Get completed task as JSON
+`)
+  .action(async (id: string, opts) => {
+    const task = await apiCall<Task>("POST", `/tasks/${id}/complete`);
+    if (opts.json) {
+      console.log(JSON.stringify(task, null, 2));
+      return;
+    }
     console.log(`Task ${id} completed.`);
   });
 
 const tasksDelete = new Command("delete")
   .description("Delete a task")
   .argument("<id>", "Task ID")
-  .action(async (id: string) => {
-    const yes = await confirm(`Delete task ${id}? (y/N) `);
-    if (!yes) {
-      console.log("Cancelled.");
+  .option("-y, --yes", "Skip confirmation prompt")
+  .option("--json", "Output raw JSON")
+  .option("--dry-run", "Show what would be deleted without doing it")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks delete abc123
+  $ delega tasks delete abc123 --yes      Skip confirmation (for scripts/agents)
+  $ delega tasks delete abc123 --json     Output result as JSON
+  $ delega tasks delete abc123 --dry-run  Preview without deleting
+`)
+  .action(async (id: string, opts) => {
+    if (opts.dryRun) {
+      const task = await apiCall<Task>("GET", `/tasks/${id}`);
+      if (opts.json) {
+        console.log(JSON.stringify({ dry_run: true, would_delete: task }, null, 2));
+        return;
+      }
+      console.log(`Would delete task ${id}: ${task.content}`);
       return;
     }
+    if (!opts.yes) {
+      const ok = await confirm(`Delete task ${id}? (y/N) `);
+      if (!ok) {
+        console.log("Cancelled.");
+        return;
+      }
+    }
     await apiCall("DELETE", `/tasks/${id}`);
+    if (opts.json) {
+      console.log(JSON.stringify({ id, deleted: true }, null, 2));
+      return;
+    }
     console.log(`Task ${id} deleted.`);
   });
 
@@ -164,11 +220,21 @@ const tasksDelegate = new Command("delegate")
   .argument("<task_id>", "Task ID")
   .argument("<agent_id>", "Agent ID to delegate to")
   .requiredOption("--content <content>", "Subtask description (required)")
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks delegate abc123 agent456 --content "Handle the frontend"
+  $ delega tasks delegate abc123 agent456 --content "Run tests" --json
+`)
   .action(async (taskId: string, agentId: string, opts) => {
     const body: Record<string, unknown> = { assigned_to_agent_id: agentId };
     if (opts.content) body.content = opts.content;
 
-    await apiCall("POST", `/tasks/${taskId}/delegate`, body);
+    const subtask = await apiCall<Task>("POST", `/tasks/${taskId}/delegate`, body);
+    if (opts.json) {
+      console.log(JSON.stringify(subtask, null, 2));
+      return;
+    }
     console.log(`Task delegated to ${agentId}.`);
   });
 

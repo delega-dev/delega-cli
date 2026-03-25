@@ -14,6 +14,11 @@ interface Stats {
 export const statsCommand = new Command("stats")
   .description("Show usage statistics")
   .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega stats
+  $ delega stats --json                   Output as JSON (for scripting)
+`)
   .action(async (opts) => {
     const data = await apiCall<Stats>("GET", "/stats");
 
