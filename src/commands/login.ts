@@ -15,40 +15,57 @@ interface MeResponse {
 }
 
 async function promptSecret(question: string): Promise<string> {
-  // Print the prompt ourselves, then read with echo disabled.
-  // This avoids needing a fake output stream (which breaks on Node 24+
-  // where readline calls output.on('resize', ...) during construction).
+  // Read a secret without echoing keystrokes.
+  // We avoid readline entirely — Node 24's readline requires a full
+  // EventEmitter output stream, and fake streams caused duplicate prompts.
+  // Instead: raw mode + manual character collection. Simple and portable.
   process.stdout.write(question);
 
   return new Promise((resolve, reject) => {
-    const rl = node_readline.createInterface({
-      input: process.stdin,
-      // Use process.stdout as output so all EventEmitter methods exist,
-      // but set terminal: false so readline won't echo input or write prompts.
-      output: process.stdout,
-      terminal: false,
-    });
-
-    // Disable raw echo at the TTY level so keystrokes aren't visible.
-    if (process.stdin.isTTY) {
-      process.stdin.setRawMode?.(false);
+    if (!process.stdin.isTTY) {
+      // Non-interactive (piped input): fall back to line reading.
+      let data = "";
+      process.stdin.setEncoding("utf-8");
+      process.stdin.on("data", (chunk: string) => { data += chunk; });
+      process.stdin.on("end", () => resolve(data.split("\n")[0].trim()));
+      process.stdin.resume();
+      return;
     }
 
-    rl.on("line", (answer) => {
-      rl.close();
-      process.stdout.write("\n");
-      resolve(answer.trim());
-    });
+    let input = "";
+    const wasRaw = process.stdin.isRaw;
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.setEncoding("utf-8");
 
-    rl.on("close", () => {
-      resolve("");
-    });
+    const onData = (key: string) => {
+      const code = key.charCodeAt(0);
+      if (key === "\r" || key === "\n") {
+        // Enter — done
+        cleanup();
+        process.stdout.write("\n");
+        resolve(input.trim());
+      } else if (code === 3) {
+        // Ctrl+C
+        cleanup();
+        process.stdout.write("\n");
+        reject(new Error("Cancelled."));
+      } else if (code === 127 || code === 8) {
+        // Backspace / Delete
+        input = input.slice(0, -1);
+      } else if (code >= 32) {
+        // Printable character
+        input += key;
+      }
+    };
 
-    rl.on("SIGINT", () => {
-      rl.close();
-      process.stdout.write("\n");
-      reject(new Error("Cancelled."));
-    });
+    const cleanup = () => {
+      process.stdin.removeListener("data", onData);
+      process.stdin.setRawMode(wasRaw ?? false);
+      process.stdin.pause();
+    };
+
+    process.stdin.on("data", onData);
   });
 }
 
