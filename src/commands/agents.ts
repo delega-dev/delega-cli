@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { apiCall } from "../api.js";
+import { apiCall, apiRequest } from "../api.js";
 import { printTable, formatDate, label, confirm } from "../ui.js";
 
 interface Agent {
@@ -94,21 +94,32 @@ Examples:
   $ delega agents rotate abc123 --yes     Skip confirmation (for scripts/agents)
   $ delega agents rotate abc123 --json    Get new API key as JSON
   $ delega agents rotate abc123 --dry-run Preview without rotating
-`)
+  `)
   .action(async (id: string, opts) => {
     if (opts.dryRun) {
-      let agent: Agent | undefined;
-      try {
-        agent = await apiCall<Agent>("GET", `/agents/${id}`);
-      } catch {
-        // Graceful degradation: if GET fails, just show the ID
-      }
+      const result = await apiRequest<Agent>("GET", `/agents/${id}`);
+      const agent = result.ok ? (result.data as Agent) : undefined;
       if (opts.json) {
-        console.log(JSON.stringify({ dry_run: true, agent_id: id, agent_name: agent?.name ?? null, action: "rotate-key" }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              dry_run: true,
+              agent_id: id,
+              agent_name: agent ? (agent.display_name || agent.name) : null,
+              action: "rotate-key",
+            },
+            null,
+            2,
+          ),
+        );
         return;
       }
-      const display = agent?.name ? `${agent.name} (${id})` : id;
-      console.log(`Would rotate API key for agent ${display}. Old key would stop working immediately.`);
+      if (agent) {
+        console.log(`Would rotate API key for agent "${agent.display_name || agent.name}" (${id}).`);
+      } else {
+        console.log(`Would rotate API key for agent ${id}.`);
+      }
+      console.log("No changes made.");
       return;
     }
     if (!opts.yes) {

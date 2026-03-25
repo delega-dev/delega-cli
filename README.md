@@ -76,7 +76,7 @@ delega tasks create "content" --due "2026-03-15"
 delega tasks show <id>                     # Show task details
 delega tasks complete <id>                 # Mark task as completed
 delega tasks delete <id>                   # Delete a task
-delega tasks delegate <task-id> <agent-id> # Delegate to another agent
+delega tasks delegate <task-id> <agent-id> --content "description"
 delega tasks delegate <task-id> <agent-id> --content "subtask description"
 ```
 

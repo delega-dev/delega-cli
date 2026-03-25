@@ -41,11 +41,18 @@ function readMacosKeychain(): string | undefined {
 }
 
 function writeMacosKeychain(apiKey: string): void {
-  node_child_process.execFileSync(
-    "security",
-    ["add-generic-password", "-U", "-a", ACCOUNT_NAME, "-s", SERVICE_NAME, "-w", apiKey],
-    { stdio: "ignore" },
-  );
+  const tmpPath = node_path.join(node_os.tmpdir(), `delega-key-${process.pid}`);
+  try {
+    node_fs.writeFileSync(tmpPath, apiKey, { encoding: "utf-8", mode: 0o600 });
+    node_child_process.execSync(
+      `security add-generic-password -U -a "${ACCOUNT_NAME}" -s "${SERVICE_NAME}" -w "$(cat '${tmpPath}')"`,
+      { stdio: "ignore" },
+    );
+  } finally {
+    try {
+      node_fs.unlinkSync(tmpPath);
+    } catch {}
+  }
 }
 
 function readLinuxSecretTool(): string | undefined {
