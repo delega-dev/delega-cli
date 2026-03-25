@@ -15,7 +15,7 @@ interface Task {
   content: string;
   status: string;
   priority: number;
-  labels?: string[];
+  labels?: string[] | string;
   due_date?: string;
   created_at?: string;
   updated_at?: string;
@@ -33,10 +33,26 @@ interface Comment {
   created_at?: string;
 }
 
+function parsePriority(value: string): number {
+  const n = parseInt(value, 10);
+  if (isNaN(n) || n < 1 || n > 4) {
+    throw new Error("Priority must be 1, 2, 3, or 4.");
+  }
+  return n;
+}
+
+function parsePositiveInt(value: string): number {
+  const n = parseInt(value, 10);
+  if (isNaN(n) || n < 1) {
+    throw new Error("Must be a positive integer.");
+  }
+  return n;
+}
+
 const tasksList = new Command("list")
   .description("List tasks")
   .option("--completed", "Include completed tasks")
-  .option("--limit <n>", "Limit results", parseInt)
+  .option("--limit <n>", "Limit results", parsePositiveInt)
   .option("--json", "Output raw JSON")
   .addHelpText("after", `
 Examples:
@@ -82,7 +98,7 @@ Examples:
 const tasksCreate = new Command("create")
   .description("Create a new task")
   .argument("<content>", "Task content")
-  .option("--priority <n>", "Priority 1-4 (default: 1)", (v: string) => parseInt(v, 10), 1)
+  .option("--priority <n>", "Priority 1-4 (default: 1)", parsePriority, 1)
   .option("--labels <labels>", "Comma-separated labels")
   .option("--due <date>", "Due date (YYYY-MM-DD)")
   .option("--json", "Output raw JSON")
@@ -137,9 +153,18 @@ Examples:
     label("Content", task.content);
     label("Status", statusBadge(task.status));
     label("Priority", priorityBadge(task.priority));
-    const labels = typeof task.labels === "string" ? JSON.parse(task.labels) : task.labels;
-    if (labels && labels.length > 0) {
+    let labels = task.labels;
+    if (typeof labels === "string") {
+      try {
+        labels = JSON.parse(labels) as string[] | string;
+      } catch {
+        // Keep malformed labels as the raw string instead of crashing.
+      }
+    }
+    if (Array.isArray(labels) && labels.length > 0) {
       label("Labels", labels.join(", "));
+    } else if (typeof labels === "string" && labels) {
+      label("Labels", labels);
     }
     if (task.due_date) label("Due", formatDate(task.due_date));
     if (task.assigned_to_agent_id) label("Delegated To", task.assigned_to_agent_id);

@@ -61,7 +61,14 @@ export async function apiRequest<T = unknown>(
   path: string,
   body?: unknown,
 ): Promise<ApiResponse<T>> {
-  const apiKey = getApiKey();
+  let apiKey: string | undefined;
+  try {
+    apiKey = getApiKey();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`Configuration error: ${msg}`);
+    process.exit(1);
+  }
   if (!apiKey) {
     console.error("Not authenticated. Run: delega login");
     process.exit(1);

@@ -566,6 +566,11 @@ async function runSelfHostedSetup(): Promise<SetupResult> {
 
   console.log(chalk.dim("Starting Delega with Docker..."));
   startDockerCompose(node_path.dirname(composePath));
+  console.log(
+    chalk.dim(
+      "Delega is bound to localhost only. To expose on your network, edit docker-compose.yml.",
+    ),
+  );
 
   console.log();
   console.log(chalk.dim("Waiting for the local API health check..."));
@@ -735,7 +740,6 @@ export const initCommand = new Command("init")
   .addHelpText("after", `
 Examples:
   $ delega init                     Interactive setup wizard
-  $ delega init --api-url <url>     Use a custom API URL
 
 This command walks you through:
   1. Choosing hosted (api.delega.dev) or self-hosted (Docker) deployment

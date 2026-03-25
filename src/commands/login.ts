@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import node_readline from "node:readline";
-import { saveConfig, loadConfig, normalizeApiUrl, persistApiKey } from "../config.js";
+import { getApiUrl, loadConfig, persistApiKey, saveConfig } from "../config.js";
 import { formatNetworkError } from "../api.js";
 import { printBanner } from "../ui.js";
 
@@ -64,12 +64,11 @@ Examples:
     }
 
     // Validate by calling the API
-    const config = loadConfig();
+    let config: ReturnType<typeof loadConfig>;
     let apiUrl: string;
     try {
-      apiUrl = normalizeApiUrl(
-        config.api_url || process.env.DELEGA_API_URL || "https://api.delega.dev",
-      );
+      config = loadConfig();
+      apiUrl = getApiUrl();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Configuration error: ${msg}`);

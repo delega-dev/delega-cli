@@ -35,11 +35,14 @@ export function loadConfig(): DelegaConfig {
   if (!node_fs.existsSync(configPath)) {
     return {};
   }
+
+  const raw = node_fs.readFileSync(configPath, "utf-8");
   try {
-    const raw = node_fs.readFileSync(configPath, "utf-8");
     return JSON.parse(raw) as DelegaConfig;
   } catch {
-    return {};
+    throw new Error(
+      "Configuration file ~/.delega/config.json is corrupted. Fix or delete it, then retry.",
+    );
   }
 }
 

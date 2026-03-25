@@ -25,14 +25,20 @@ interface MeResponse {
 
 export const whoamiCommand = new Command("whoami")
   .description("Show current authenticated agent")
+  .option("--json", "Output raw JSON")
   .addHelpText("after", `
 Examples:
   $ delega whoami                         Show current agent identity
+  $ delega whoami --json                  Output as JSON (for scripting)
 `)
-  .action(async () => {
+  .action(async (opts) => {
     const me = await apiRequest<MeResponse>("GET", "/agent/me");
     if (me.ok) {
       const payload = me.data as MeResponse;
+      if (opts.json) {
+        console.log(JSON.stringify(payload, null, 2));
+        return;
+      }
       const agent = payload.agent;
       if (!agent) {
         console.error("Current server did not return agent details.");
@@ -61,6 +67,19 @@ Examples:
     }
 
     await apiCall<unknown[]>("GET", "/tasks?completed=true");
+    if (opts.json) {
+      console.log(
+        JSON.stringify(
+          {
+            authenticated: true,
+            server: "Current API does not expose /agent/me",
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
     console.log();
     label("Authenticated", "yes");
     label("Server", "Current API does not expose /agent/me");
