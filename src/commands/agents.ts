@@ -97,11 +97,18 @@ Examples:
 `)
   .action(async (id: string, opts) => {
     if (opts.dryRun) {
+      let agent: Agent | undefined;
+      try {
+        agent = await apiCall<Agent>("GET", `/agents/${id}`);
+      } catch {
+        // Graceful degradation: if GET fails, just show the ID
+      }
       if (opts.json) {
-        console.log(JSON.stringify({ dry_run: true, agent_id: id, action: "rotate-key" }, null, 2));
+        console.log(JSON.stringify({ dry_run: true, agent_id: id, agent_name: agent?.name ?? null, action: "rotate-key" }, null, 2));
         return;
       }
-      console.log(`Would rotate API key for agent ${id}. Old key would stop working immediately.`);
+      const display = agent?.name ? `${agent.name} (${id})` : id;
+      console.log(`Would rotate API key for agent ${display}. Old key would stop working immediately.`);
       return;
     }
     if (!opts.yes) {
@@ -120,7 +127,7 @@ Examples:
     );
 
     if (opts.json) {
-      console.log(JSON.stringify({ id, api_key: result.api_key }, null, 2));
+      console.log(JSON.stringify({ id: result.id, api_key: result.api_key }, null, 2));
       return;
     }
 
