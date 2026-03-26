@@ -58,7 +58,9 @@ Examples:
     let stats: Stats | undefined;
 
     try {
-      const res = await fetch(apiUrl + "/health", {
+      // Health endpoint lives at the API root, not under /v1.
+      const healthBase = apiUrl.replace(/\/v1\/?$/, "");
+      const res = await fetch(healthBase + "/health", {
         signal: AbortSignal.timeout(15_000),
       });
       if (res.ok) {
