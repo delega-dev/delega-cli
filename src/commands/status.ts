@@ -56,7 +56,10 @@ export const statusCommand = new Command("status")
 
     try {
       try {
-        const res = await fetch(apiUrl + "/health", {
+        // Health endpoint lives at the API root, not under /v1.
+        // Strip /v1 suffix so we hit /health, not /v1/health (which requires auth).
+        const healthBase = apiUrl.replace(/\/v1\/?$/, "");
+        const res = await fetch(healthBase + "/health", {
           signal: controller.signal,
         });
         if (res.ok) {
