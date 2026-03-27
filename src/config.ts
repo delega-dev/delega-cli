@@ -8,6 +8,11 @@ export interface DelegaConfig {
   api_url?: string;
 }
 
+export interface ApiKeyStorageResult {
+  location: string;
+  secure: boolean;
+}
+
 const LOCAL_API_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function normalizeHost(hostname: string): string {
@@ -60,15 +65,19 @@ export function saveConfig(config: DelegaConfig): void {
   node_fs.chmodSync(getConfigPath(), 0o600);
 }
 
-export function persistApiKey(apiKey: string): string {
+export function persistApiKey(apiKey: string): ApiKeyStorageResult {
   const storeLabel = storeApiKey(apiKey);
   if (storeLabel) {
-    return storeLabel;
+    return {
+      location: storeLabel,
+      secure: true,
+    };
   }
 
-  throw new Error(
-    "Secure credential storage is unavailable on this system. Set DELEGA_API_KEY manually instead.",
-  );
+  return {
+    location: getConfigPath(),
+    secure: false,
+  };
 }
 
 export function normalizeApiUrl(rawUrl: string): string {

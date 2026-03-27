@@ -155,16 +155,21 @@ Examples:
 
     let storageLocation: string;
     try {
-      storageLocation = persistApiKey(key);
+      const storage = persistApiKey(key);
+      storageLocation = storage.location;
+
+      const nextConfig = { ...config };
+      if (storage.secure) {
+        delete nextConfig.api_key;
+      } else {
+        nextConfig.api_key = key;
+      }
+      saveConfig(nextConfig);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`Unable to store API key securely: ${msg}`);
+      console.error(`Unable to store API key: ${msg}`);
       process.exit(1);
     }
-
-    const nextConfig = { ...config };
-    delete nextConfig.api_key;
-    saveConfig(nextConfig);
     if (validatedWithoutMetadata) {
       console.log(`\nLogged in. Key saved to ${storageLocation}`);
       console.log("Current server validated the key but does not expose /agent/me metadata.");
