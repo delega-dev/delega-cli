@@ -276,22 +276,26 @@ function printKeyBox(apiKey: string, storageLocation: string): void {
   console.log(`  └${"─".repeat(innerWidth + 2)}┘`);
 }
 
-function saveApiConfig(rawApiUrl: string): void {
+function saveApiConfig(rawApiUrl: string, apiKey?: string): void {
   try {
     const nextConfig = { ...loadConfig(), api_url: rawApiUrl };
-    delete nextConfig.api_key;
+    if (apiKey) {
+      nextConfig.api_key = apiKey;
+    } else {
+      delete nextConfig.api_key;
+    }
     saveConfig(nextConfig);
   } catch (error) {
     throw new UserFacingError(`Unable to save config: ${extractMessage(error)}`);
   }
 }
 
-function storeApiKey(apiKey: string): string {
+function storeApiKey(apiKey: string): { location: string; secure: boolean } {
   try {
     return persistApiKey(apiKey);
   } catch (error) {
     throw new UserFacingError(
-      `Unable to store API key securely: ${extractMessage(error)}`,
+      `Unable to store API key: ${extractMessage(error)}`,
     );
   }
 }
@@ -456,10 +460,10 @@ async function finalizeSetup(rawApiUrl: string, apiKey: string, dashboardUrl: st
     // Validate API connectivity before persisting anything to disk.
     // If this fails, no config or key is saved — the user can retry cleanly.
     const task = await createDemoTask(apiBaseUrl, apiKey);
-    const storageLocation = storeApiKey(apiKey);
-    saveApiConfig(rawApiUrl);
+    const storage = storeApiKey(apiKey);
+    saveApiConfig(rawApiUrl, storage.secure ? undefined : apiKey);
 
-    return { apiKey, apiUrl: rawApiUrl, storageLocation, task, dashboardUrl };
+    return { apiKey, apiUrl: rawApiUrl, storageLocation: storage.location, task, dashboardUrl };
   } catch (error) {
     // The account/agent already exists server-side — print the key so it isn't lost.
     console.error();

@@ -38,9 +38,14 @@ program.addCommand(statsCommand);
 program.addCommand(statusCommand);
 program.addCommand(resetCommand);
 
-program.on("command:*", () => {
+program.on("command:*", ([commandName]) => {
   printBanner();
-  program.help();
+  if (commandName) {
+    console.error(`Unknown command: ${commandName}`);
+    console.error();
+  }
+  program.outputHelp();
+  process.exit(1);
 });
 
 if (process.argv.length <= 2) {
