@@ -23,8 +23,34 @@ interface Task {
   assigned_to_agent_id?: string;
   delegated_from_task_id?: string;
   parent_task_id?: string;
+  root_task_id?: string;
+  delegation_depth?: number;
+  // Context ships as a dict on self-hosted (SQLAlchemy JSON) and as a
+  // JSON-encoded string on hosted (D1/SQLite text column). Normalize
+  // on display.
+  context?: Record<string, unknown> | string | null;
   subtasks?: Task[];
   comments?: Comment[];
+}
+
+function normalizeContext(raw: unknown): Record<string, unknown> | null {
+  if (raw == null) return null;
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 interface Comment {
@@ -170,9 +196,25 @@ Examples:
     if (task.assigned_to_agent_id) label("Delegated To", task.assigned_to_agent_id);
     if (task.delegated_from_task_id) label("Delegated From", task.delegated_from_task_id);
     if (task.parent_task_id) label("Parent Task", task.parent_task_id);
+    if (task.root_task_id && task.root_task_id !== task.id) label("Root Task", task.root_task_id);
+    if (typeof task.delegation_depth === "number" && task.delegation_depth > 0) {
+      label("Delegation Depth", String(task.delegation_depth));
+    }
     label("Created", formatDate(task.created_at || ""));
     if (task.updated_at) label("Updated", formatDate(task.updated_at));
     if (task.completed_at) label("Completed", formatDate(task.completed_at));
+
+    const ctx = normalizeContext(task.context);
+    if (ctx && Object.keys(ctx).length > 0) {
+      console.log();
+      console.log("Context:");
+      console.log(
+        JSON.stringify(ctx, null, 2)
+          .split("\n")
+          .map((line) => `  ${line}`)
+          .join("\n"),
+      );
+    }
 
     if (task.comments && task.comments.length > 0) {
       console.log();
