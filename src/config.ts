@@ -108,7 +108,16 @@ export function normalizeApiUrl(rawUrl: string): string {
 }
 
 export function getApiKey(): string | undefined {
-  return process.env.DELEGA_API_KEY || loadStoredApiKey() || loadConfig().api_key;
+  // DELEGA_API_KEY is the historical primary for this package.
+  // DELEGA_AGENT_KEY is accepted as a fallback for cross-client consistency
+  // with @delega-dev/mcp, whose primary is DELEGA_AGENT_KEY. Agents that
+  // configure MCP + CLI in the same shell don't need to set both.
+  return (
+    process.env.DELEGA_API_KEY ||
+    process.env.DELEGA_AGENT_KEY ||
+    loadStoredApiKey() ||
+    loadConfig().api_key
+  );
 }
 
 export function getApiUrl(): string {

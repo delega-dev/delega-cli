@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-04-14
+
+### Fixed
+- `delega tasks show` now parses and pretty-prints the `context` field when present (hosted returns a JSON-encoded string; self-hosted returns a dict — both render as an indented JSON block now)
+- `delega tasks show` surfaces `root_task_id` + `delegation_depth` when the task is part of a delegation chain
+
+### Added
+- Accept `DELEGA_AGENT_KEY` as a fallback env var for `DELEGA_API_KEY` — cross-client consistency with the @delega-dev/mcp package, which uses `DELEGA_AGENT_KEY` as its primary. Agents can now set one env var for both tools.
+
 ## [1.2.0] - 2026-04-14
 
 ### Added
