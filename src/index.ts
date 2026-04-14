@@ -10,6 +10,7 @@ import { agentsCommand } from "./commands/agents.js";
 import { statsCommand } from "./commands/stats.js";
 import { statusCommand } from "./commands/status.js";
 import { resetCommand } from "./commands/reset.js";
+import { usageCommand } from "./commands/usage.js";
 import { printBanner } from "./ui.js";
 
 const require = createRequire(import.meta.url);
@@ -35,6 +36,7 @@ program.addCommand(whoamiCommand);
 program.addCommand(tasksCommand);
 program.addCommand(agentsCommand);
 program.addCommand(statsCommand);
+program.addCommand(usageCommand);
 program.addCommand(statusCommand);
 program.addCommand(resetCommand);
 

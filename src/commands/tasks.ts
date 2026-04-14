@@ -263,6 +263,230 @@ Examples:
     console.log(`Task delegated to ${agentId}.`);
   });
 
+// ── 1.2.0 multi-agent coordination commands ──
+
+const tasksAssign = new Command("assign")
+  .description("Assign a task to an agent (or --unassign to clear)")
+  .argument("<task_id>", "Task ID")
+  .argument("[agent_id]", "Agent ID to assign to (omit with --unassign)")
+  .option("--unassign", "Clear the assignment (pass instead of an agent_id)")
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks assign abc123 agent456
+  $ delega tasks assign abc123 --unassign
+  $ delega tasks assign abc123 agent456 --json
+
+For multi-agent handoffs where you want the parent/child chain recorded,
+use \`delega tasks delegate\` instead — assign does not record a chain.
+`)
+  .action(async (taskId: string, agentId: string | undefined, opts) => {
+    if (opts.unassign && agentId) {
+      console.error("Error: pass either --unassign or an <agent_id>, not both.");
+      process.exit(1);
+    }
+    if (!opts.unassign && !agentId) {
+      console.error("Error: must supply either <agent_id> or --unassign.");
+      process.exit(1);
+    }
+    const body = { assigned_to_agent_id: opts.unassign ? null : agentId };
+    const task = await apiCall<Task>("PUT", `/tasks/${taskId}`, body);
+    if (opts.json) {
+      console.log(JSON.stringify(task, null, 2));
+      return;
+    }
+    console.log(
+      opts.unassign
+        ? `Task ${taskId} unassigned.`
+        : `Task ${taskId} assigned to ${agentId}.`,
+    );
+  });
+
+interface ChainResponse {
+  root_id?: string | number;
+  root?: { id: string | number; content?: string };
+  chain: Array<{
+    id: string | number;
+    content: string;
+    delegation_depth?: number;
+    status?: string;
+    completed?: boolean;
+  }>;
+  depth: number;
+  completed_count: number;
+  total_count: number;
+}
+
+const tasksChain = new Command("chain")
+  .description("Show the full parent/child delegation chain for a task")
+  .argument("<task_id>", "Any task ID in the chain")
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks chain abc123
+  $ delega tasks chain abc123 --json
+`)
+  .action(async (taskId: string, opts) => {
+    const resp = await apiCall<ChainResponse>("GET", `/tasks/${taskId}/chain`);
+    if (opts.json) {
+      console.log(JSON.stringify(resp, null, 2));
+      return;
+    }
+    // Normalize: hosted returns {root_id}, self-hosted returns {root: {...}}.
+    const rootId =
+      resp.root_id !== undefined
+        ? resp.root_id
+        : resp.root && resp.root.id !== undefined
+          ? resp.root.id
+          : "";
+    console.log(
+      `\nDelegation chain (root #${rootId}, depth ${resp.depth}, ` +
+        `${resp.completed_count}/${resp.total_count} complete):`,
+    );
+    const sorted = [...(resp.chain || [])].sort((a, b) => {
+      const da = typeof a.delegation_depth === "number" ? a.delegation_depth : 0;
+      const db = typeof b.delegation_depth === "number" ? b.delegation_depth : 0;
+      return da - db;
+    });
+    for (const node of sorted) {
+      const d =
+        typeof node.delegation_depth === "number" ? node.delegation_depth : 0;
+      const indent = "  ".repeat(1 + d);
+      const status = node.status || (node.completed ? "completed" : "pending");
+      console.log(`${indent}[#${node.id}] ${node.content} (depth ${d}, ${status})`);
+    }
+    if (!sorted.length) {
+      console.log("  (empty chain)");
+    }
+    console.log();
+  });
+
+function parseContextInput(kvPairs: string[] | undefined, rawJson: string | undefined): Record<string, unknown> {
+  if (rawJson) {
+    try {
+      const parsed = JSON.parse(rawJson);
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        throw new Error("--context must be a JSON object");
+      }
+      return parsed as Record<string, unknown>;
+    } catch (e) {
+      throw new Error(
+        `--context must be valid JSON object: ${(e as Error).message}`,
+      );
+    }
+  }
+  const out: Record<string, unknown> = {};
+  for (const pair of kvPairs || []) {
+    const eq = pair.indexOf("=");
+    if (eq <= 0) {
+      throw new Error(`--kv entries must be key=value, got: ${pair}`);
+    }
+    const key = pair.slice(0, eq);
+    const rawValue = pair.slice(eq + 1);
+    // Try to parse as JSON (so numbers, bools, arrays work) — fall back to string.
+    let value: unknown = rawValue;
+    try {
+      value = JSON.parse(rawValue);
+    } catch {
+      value = rawValue;
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+const tasksSetContext = new Command("set-context")
+  .description("Merge keys into a task's persistent context blob")
+  .argument("<task_id>", "Task ID")
+  .option("--kv <pair...>", "Key=value pair to merge (repeatable)")
+  .option("--context <json>", "Full context as a JSON object")
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks set-context abc123 --kv step=research_done --kv count=3
+  $ delega tasks set-context abc123 --context '{"findings":["price=$20/mo"]}'
+
+Keys are deep-merged into existing context (not replaced).
+`)
+  .action(async (taskId: string, opts) => {
+    let body: Record<string, unknown>;
+    try {
+      body = parseContextInput(opts.kv, opts.context);
+    } catch (e) {
+      console.error(`Error: ${(e as Error).message}`);
+      process.exit(1);
+    }
+    if (Object.keys(body).length === 0) {
+      console.error(
+        "Error: supply at least one --kv pair or a --context JSON object.",
+      );
+      process.exit(1);
+    }
+    const resp = await apiCall<unknown>("PATCH", `/tasks/${taskId}/context`, body);
+    if (opts.json) {
+      console.log(JSON.stringify(resp, null, 2));
+      return;
+    }
+    console.log(`Context updated for task ${taskId}.`);
+    // Normalize display: hosted returns bare context dict, self-hosted returns full Task.
+    let merged: unknown = resp;
+    if (
+      resp && typeof resp === "object" &&
+      "content" in resp && "id" in resp
+    ) {
+      merged = (resp as { context?: unknown }).context || {};
+    }
+    console.log(JSON.stringify(merged, null, 2));
+  });
+
+interface DedupMatch {
+  task_id: string | number;
+  content: string;
+  score: number;
+}
+interface DedupResult {
+  has_duplicates: boolean;
+  matches: DedupMatch[];
+}
+
+const tasksDedup = new Command("dedup")
+  .description("Check if content is similar to an existing open task")
+  .requiredOption("--content <content>", "Proposed task content (required)")
+  .option("--threshold <n>", "Similarity threshold 0-1 (default 0.6)", (v) =>
+    Number.parseFloat(v),
+  )
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks dedup --content "Research pricing"
+  $ delega tasks dedup --content "Research pricing" --threshold 0.8
+  $ delega tasks dedup --content "Research pricing" --json
+
+Call before \`delega tasks create\` to avoid redundant work.
+`)
+  .action(async (opts) => {
+    if (opts.threshold !== undefined && (Number.isNaN(opts.threshold) || opts.threshold < 0 || opts.threshold > 1)) {
+      console.error("Error: --threshold must be a number between 0 and 1.");
+      process.exit(1);
+    }
+    const body: { content: string; threshold?: number } = { content: opts.content };
+    if (opts.threshold !== undefined) body.threshold = opts.threshold;
+    const resp = await apiCall<DedupResult>("POST", "/tasks/dedup", body);
+    if (opts.json) {
+      console.log(JSON.stringify(resp, null, 2));
+      return;
+    }
+    if (!resp.matches?.length) {
+      console.log("No duplicates found.");
+      return;
+    }
+    console.log(`Found ${resp.matches.length} possible duplicate${resp.matches.length === 1 ? "" : "s"}:`);
+    for (const m of resp.matches) {
+      const score = typeof m.score === "number" ? m.score.toFixed(2) : String(m.score);
+      console.log(`  [#${m.task_id}] ${m.content} (score ${score})`);
+    }
+  });
+
 export const tasksCommand = new Command("tasks")
   .description("Manage tasks")
   .addCommand(tasksList)
@@ -270,4 +494,8 @@ export const tasksCommand = new Command("tasks")
   .addCommand(tasksShow)
   .addCommand(tasksComplete)
   .addCommand(tasksDelete)
-  .addCommand(tasksDelegate);
+  .addCommand(tasksDelegate)
+  .addCommand(tasksAssign)
+  .addCommand(tasksChain)
+  .addCommand(tasksSetContext)
+  .addCommand(tasksDedup);
