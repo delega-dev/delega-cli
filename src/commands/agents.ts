@@ -148,8 +148,68 @@ Examples:
     console.log();
   });
 
+const agentsDelete = new Command("delete")
+  .description("Delete an agent")
+  .argument("<id>", "Agent ID to delete")
+  .option("-y, --yes", "Skip confirmation prompt")
+  .option("--json", "Output raw JSON")
+  .option("--dry-run", "Show what would happen without deleting")
+  .addHelpText("after", `
+Examples:
+  $ delega agents delete abc123
+  $ delega agents delete abc123 --yes         Skip confirmation (for scripts/agents)
+  $ delega agents delete abc123 --dry-run     Preview without deleting
+
+The API refuses to delete an agent that has active tasks, is the recovery
+agent, is the last active agent, or is the caller itself.
+`)
+  .action(async (id: string, opts) => {
+    if (opts.dryRun) {
+      const result = await apiRequest<Agent>("GET", `/agents/${id}`);
+      const agent = result.ok ? (result.data as Agent) : undefined;
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            {
+              dry_run: true,
+              agent_id: id,
+              agent_name: agent ? (agent.display_name || agent.name) : null,
+              action: "delete",
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+      if (agent) {
+        console.log(`Would delete agent "${agent.display_name || agent.name}" (${id}).`);
+      } else {
+        console.log(`Would delete agent ${id}.`);
+      }
+      console.log("No changes made.");
+      return;
+    }
+    if (!opts.yes) {
+      const ok = await confirm(
+        `Delete agent ${id}? This action cannot be undone. (y/N) `,
+      );
+      if (!ok) {
+        console.log("Cancelled.");
+        return;
+      }
+    }
+    await apiCall("DELETE", `/agents/${id}`);
+    if (opts.json) {
+      console.log(JSON.stringify({ id, deleted: true }, null, 2));
+      return;
+    }
+    console.log(`Agent ${id} deleted.`);
+  });
+
 export const agentsCommand = new Command("agents")
   .description("Manage agents")
   .addCommand(agentsList)
   .addCommand(agentsCreate)
-  .addCommand(agentsRotate);
+  .addCommand(agentsRotate)
+  .addCommand(agentsDelete);

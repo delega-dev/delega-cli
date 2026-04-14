@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-04-14
+
+### Added
+- `delega tasks assign <task_id> <agent_id | --unassign>` — assign/unassign a task (PUT /tasks/:id with `assigned_to_agent_id`)
+- `delega tasks chain <task_id>` — show the full parent/child delegation chain, indented by depth
+- `delega tasks set-context <task_id> --kv key=value...` (or `--context '{...}'`) — deep-merge keys into a task's persistent context blob (PATCH /tasks/:id/context)
+- `delega tasks dedup --content "..." [--threshold 0.6]` — Jaccard similarity check against open tasks (POST /tasks/dedup); call before `delega tasks create` to avoid redundant work
+- `delega agents delete <id>` — delete an agent (`--yes` for scripts, `--dry-run` for preview). API refuses if the agent has active tasks, is the recovery agent, is the last active, or is the caller
+- `delega usage` — plan quota + rate-limit info (hosted API only; gated client-side with a clear error on self-hosted)
+
+## [1.1.5] - 2026-03-28
+
 ### Added
 - `delega status` command for connection diagnostics
 - `delega reset` command to wipe local config and credentials
