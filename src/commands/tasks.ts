@@ -25,6 +25,9 @@ interface Task {
   claimed_by_agent_id?: string | null;
   claimed_at?: string | null;
   lease_expires_at?: string | null;
+  session_state?: string | null;
+  session_state_detail?: string | null;
+  accountable_agent_id?: string | null;
   delegated_from_task_id?: string;
   parent_task_id?: string;
   root_task_id?: string;
@@ -84,6 +87,7 @@ const tasksList = new Command("list")
   .option("--completed", "Include completed tasks")
   .option("--claimed", "Only tasks currently claimed (work queue)")
   .option("--unclaimed", "Only tasks not currently claimed")
+  .option("--state <state>", "Only tasks in a session state (working, waiting_input, errored)")
   .option("--limit <n>", "Limit results", parsePositiveInt)
   .option("--json", "Output raw JSON")
   .addHelpText("after", `
@@ -91,6 +95,7 @@ Examples:
   $ delega tasks list                     List pending tasks
   $ delega tasks list --completed         Include completed tasks
   $ delega tasks list --claimed           Only currently-claimed tasks
+  $ delega tasks list --state waiting_input  Claimed tasks blocked on input
   $ delega tasks list --limit 5           Show only 5 tasks
   $ delega tasks list --json              Output as JSON (for scripting)
   $ delega tasks list --json | jq '.[0]'  Get first task with jq
@@ -101,6 +106,7 @@ Examples:
     if (opts.completed) params.push("completed=true");
     if (opts.claimed) params.push("claimed=true");
     if (opts.unclaimed) params.push("claimed=false");
+    if (opts.state) params.push(`state=${encodeURIComponent(opts.state)}`);
     if (opts.limit) params.push(`limit=${opts.limit}`);
     if (params.length > 0) path += "?" + params.join("&");
 
@@ -118,11 +124,12 @@ Examples:
       return;
     }
 
-    const headers = ["ID", "Pri", "Status", "Delegated To", "Content"];
+    const headers = ["ID", "Pri", "Status", "State", "Delegated To", "Content"];
     const rows = tasks.map((t) => [
       formatId(t.id),
       priorityBadge(t.priority),
       statusBadge(t.status),
+      t.session_state ?? "—",
       t.assigned_to_agent_id ? formatId(t.assigned_to_agent_id) : "—",
       t.content.length > 40 ? t.content.slice(0, 37) + "..." : t.content,
     ]);
@@ -187,6 +194,12 @@ Examples:
     label("ID", task.id);
     label("Content", task.content);
     label("Status", statusBadge(task.status));
+    if (task.session_state) {
+      label("State", task.session_state_detail
+        ? `${task.session_state} — "${task.session_state_detail}"`
+        : task.session_state);
+    }
+    if (task.accountable_agent_id) label("Accountable", formatId(task.accountable_agent_id));
     label("Priority", priorityBadge(task.priority));
     let labels = task.labels;
     if (typeof labels === "string") {
@@ -623,6 +636,40 @@ Fails with a 409 error if you do not hold an active claim on the task.
     if (task.lease_expires_at) label("Lease Expires", formatDateTime(task.lease_expires_at));
   });
 
+const SESSION_STATES = ["working", "waiting_input", "errored"];
+
+const tasksState = new Command("state")
+  .description("Report the session state of a task you have claimed")
+  .argument("<task_id>", "Task ID")
+  .argument("<state>", `Session state: ${SESSION_STATES.join(", ")}`)
+  .option("-m, --detail <text>", "Free-text detail (max 500 chars)")
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks state abc123 waiting_input -m "needs prod API key"
+  $ delega tasks state abc123 errored -m "build failed: missing dep"
+  $ delega tasks state abc123 working          Back to working (clears detail)
+
+Sets the state WITHOUT extending the lease — use \`delega tasks heartbeat\`
+for liveness. Fails with a 409 error if you do not hold an active claim.
+`)
+  .action(async (taskId: string, state: string, opts) => {
+    if (!SESSION_STATES.includes(state)) {
+      throw new Error(`State must be one of: ${SESSION_STATES.join(", ")}.`);
+    }
+    const body: Record<string, unknown> = { state };
+    if (opts.detail) body.detail = opts.detail;
+
+    const task = await apiCall<Task>("POST", `/tasks/${taskId}/state`, body);
+    if (opts.json) {
+      console.log(JSON.stringify(task, null, 2));
+      return;
+    }
+    console.log(`Task ${taskId} state set to ${task.session_state ?? state}.`);
+    if (task.session_state_detail) label("Detail", task.session_state_detail);
+    if (task.lease_expires_at) label("Lease Expires", formatDateTime(task.lease_expires_at));
+  });
+
 const tasksRelease = new Command("release")
   .description("Release a claimed task back to the queue")
   .argument("<task_id>", "Task ID")
@@ -658,4 +705,5 @@ export const tasksCommand = new Command("tasks")
   .addCommand(tasksDedup)
   .addCommand(tasksClaim)
   .addCommand(tasksHeartbeat)
+  .addCommand(tasksState)
   .addCommand(tasksRelease);

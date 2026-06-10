@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-06-10
+
+### Added
+- `delega tasks state <task_id> <state> [-m <detail>]` — report a session
+  state (`working`, `waiting_input`, `errored`) on a task you have claimed
+  (POST /tasks/:id/state) without extending the lease
+- `delega tasks list` shows a State column; `--state <state>` filters by
+  session state (GET /tasks?state=)
+- `delega tasks show` displays the session state (with detail) and the
+  accountable agent when present
+
 ## [1.3.0] - 2026-06-10
 
 ### Added
