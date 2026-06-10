@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-10
+
+### Added
+- `delega tasks claim [--project <id>] [--labels "a,b"] [--lease <seconds>]` — atomically claim the next claimable task (POST /tasks/claim), ordered by priority then age; prints "No tasks available to claim." when the queue is empty
+- `delega tasks heartbeat <task_id> [--lease <seconds>]` — extend the lease on a claimed task (POST /tasks/:id/heartbeat); 409 if you don't hold an active claim
+- `delega tasks release <task_id>` — release a claimed task back to the queue (POST /tasks/:id/release); holder or admin only
+- `delega tasks list --claimed` / `--unclaimed` — filter by claim state (GET /tasks?claimed=)
+- Task claim fields (`claimed_by_agent_id`, `claimed_at`, `lease_expires_at`) on the Task model, and a `claimed` status badge in task output
+
 ## [1.2.1] - 2026-04-14
 
 ### Fixed

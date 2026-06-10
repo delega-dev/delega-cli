@@ -52,6 +52,18 @@ export function formatDate(iso: string): string {
   });
 }
 
+export function formatDateTime(iso: string): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function formatId(id: string | number): string {
   const s = String(id);
   return s.length > 8 ? s.slice(0, 8) : s;
@@ -81,6 +93,8 @@ export function statusBadge(s: string): string {
       return chalk.yellow("in_progress");
     case "pending":
       return chalk.blue("pending");
+    case "claimed":
+      return chalk.magenta("claimed");
     case "cancelled":
     case "canceled":
       return chalk.dim("cancelled");

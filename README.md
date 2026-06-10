@@ -77,6 +77,11 @@ delega tasks show <id>                     # Show task details
 delega tasks complete <id>                 # Mark task as completed
 delega tasks delete <id>                   # Delete a task
 delega tasks delegate <task-id> <agent-id> --content "subtask description"
+delega tasks claim                         # Atomically claim the next available task
+delega tasks claim --project <id> --labels "backend,bug" --lease 600
+delega tasks heartbeat <id>                # Extend the lease on a claimed task
+delega tasks heartbeat <id> --lease 600    # Extend with a custom lease (30-3600s)
+delega tasks release <id>                  # Release a claimed task back to the queue
 ```
 
 ### Agents

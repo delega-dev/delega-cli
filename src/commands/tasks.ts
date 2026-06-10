@@ -3,6 +3,7 @@ import { apiCall } from "../api.js";
 import {
   printTable,
   formatDate,
+  formatDateTime,
   formatId,
   priorityBadge,
   statusBadge,
@@ -21,6 +22,9 @@ interface Task {
   updated_at?: string;
   completed_at?: string;
   assigned_to_agent_id?: string;
+  claimed_by_agent_id?: string | null;
+  claimed_at?: string | null;
+  lease_expires_at?: string | null;
   delegated_from_task_id?: string;
   parent_task_id?: string;
   root_task_id?: string;
@@ -78,12 +82,15 @@ function parsePositiveInt(value: string): number {
 const tasksList = new Command("list")
   .description("List tasks")
   .option("--completed", "Include completed tasks")
+  .option("--claimed", "Only tasks currently claimed (work queue)")
+  .option("--unclaimed", "Only tasks not currently claimed")
   .option("--limit <n>", "Limit results", parsePositiveInt)
   .option("--json", "Output raw JSON")
   .addHelpText("after", `
 Examples:
   $ delega tasks list                     List pending tasks
   $ delega tasks list --completed         Include completed tasks
+  $ delega tasks list --claimed           Only currently-claimed tasks
   $ delega tasks list --limit 5           Show only 5 tasks
   $ delega tasks list --json              Output as JSON (for scripting)
   $ delega tasks list --json | jq '.[0]'  Get first task with jq
@@ -92,6 +99,8 @@ Examples:
     let path = "/tasks";
     const params: string[] = [];
     if (opts.completed) params.push("completed=true");
+    if (opts.claimed) params.push("claimed=true");
+    if (opts.unclaimed) params.push("claimed=false");
     if (opts.limit) params.push(`limit=${opts.limit}`);
     if (params.length > 0) path += "?" + params.join("&");
 
@@ -529,6 +538,112 @@ Call before \`delega tasks create\` to avoid redundant work.
     }
   });
 
+// ── 1.3.0 task-claiming commands ──
+
+function parseLeaseSeconds(value: string): number {
+  const n = parseInt(value, 10);
+  if (isNaN(n) || n < 30 || n > 3600) {
+    throw new Error("Lease must be between 30 and 3600 seconds.");
+  }
+  return n;
+}
+
+interface ClaimResponse {
+  task: Task | null;
+}
+
+const tasksClaim = new Command("claim")
+  .description("Atomically claim the next available task from the queue")
+  .option("--project <id>", "Only claim tasks in this project")
+  .option("--labels <labels>", "Comma-separated labels to filter by")
+  .option("--lease <seconds>", "Lease duration in seconds, 30-3600 (default 300)", parseLeaseSeconds)
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks claim                          Claim the next available task
+  $ delega tasks claim --project proj123        Only claim from a project
+  $ delega tasks claim --labels "backend,bug"   Only claim tasks with labels
+  $ delega tasks claim --lease 600              Hold the lease for 10 minutes
+  $ delega tasks claim --json                   Output as JSON (for scripting)
+
+Tasks are claimed in priority order (P1 first), then oldest first. Use
+\`delega tasks heartbeat\` to extend the lease and \`delega tasks release\`
+to requeue a task you can't finish.
+`)
+  .action(async (opts) => {
+    const body: Record<string, unknown> = {};
+    if (opts.project) body.project_id = opts.project;
+    if (opts.labels) body.labels = opts.labels.split(",").map((l: string) => l.trim());
+    if (opts.lease) body.lease_seconds = opts.lease;
+
+    const resp = await apiCall<ClaimResponse>("POST", "/tasks/claim", body);
+
+    if (opts.json) {
+      console.log(JSON.stringify(resp, null, 2));
+      return;
+    }
+
+    if (!resp.task) {
+      console.log("No tasks available to claim.");
+      return;
+    }
+
+    const task = resp.task;
+    console.log(`Task claimed: ${task.id}`);
+    console.log();
+    label("Content", task.content);
+    label("Priority", priorityBadge(task.priority));
+    label("Status", statusBadge(task.status));
+    if (task.lease_expires_at) label("Lease Expires", formatDateTime(task.lease_expires_at));
+  });
+
+const tasksHeartbeat = new Command("heartbeat")
+  .description("Extend the lease on a task you have claimed")
+  .argument("<task_id>", "Task ID")
+  .option("--lease <seconds>", "New lease duration in seconds, 30-3600 (default 300)", parseLeaseSeconds)
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks heartbeat abc123
+  $ delega tasks heartbeat abc123 --lease 600   Extend the lease by 10 minutes
+  $ delega tasks heartbeat abc123 --json        Get updated task as JSON
+
+Fails with a 409 error if you do not hold an active claim on the task.
+`)
+  .action(async (taskId: string, opts) => {
+    const body: Record<string, unknown> = {};
+    if (opts.lease) body.lease_seconds = opts.lease;
+
+    const task = await apiCall<Task>("POST", `/tasks/${taskId}/heartbeat`, body);
+    if (opts.json) {
+      console.log(JSON.stringify(task, null, 2));
+      return;
+    }
+    console.log(`Lease extended for task ${taskId}.`);
+    if (task.lease_expires_at) label("Lease Expires", formatDateTime(task.lease_expires_at));
+  });
+
+const tasksRelease = new Command("release")
+  .description("Release a claimed task back to the queue")
+  .argument("<task_id>", "Task ID")
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega tasks release abc123
+  $ delega tasks release abc123 --json    Get requeued task as JSON
+
+Releasing requeues the task (status returns to open) so another agent
+can claim it. Only the claim holder or an admin can release a task.
+`)
+  .action(async (taskId: string, opts) => {
+    const task = await apiCall<Task>("POST", `/tasks/${taskId}/release`);
+    if (opts.json) {
+      console.log(JSON.stringify(task, null, 2));
+      return;
+    }
+    console.log(`Task ${taskId} released back to the queue.`);
+  });
+
 export const tasksCommand = new Command("tasks")
   .description("Manage tasks")
   .addCommand(tasksList)
@@ -540,4 +655,7 @@ export const tasksCommand = new Command("tasks")
   .addCommand(tasksAssign)
   .addCommand(tasksChain)
   .addCommand(tasksSetContext)
-  .addCommand(tasksDedup);
+  .addCommand(tasksDedup)
+  .addCommand(tasksClaim)
+  .addCommand(tasksHeartbeat)
+  .addCommand(tasksRelease);
