@@ -84,6 +84,18 @@ delega tasks heartbeat <id> --lease 600    # Extend with a custom lease (30-3600
 delega tasks release <id>                  # Release a claimed task back to the queue
 ```
 
+### Connect GitHub
+
+```bash
+delega github connect                       # Open GitHub's install page; auto-links selected repos
+delega github connect --no-open             # Print the install URL instead of opening a browser
+```
+
+Links repositories via the hosted GitHub App so commits/PRs that mention a task
+(`delega:#<task-id>`, or `Closes-Delega: #<task-id>` to complete on merge) link
+back to it. The repos you select are registered automatically — no installation
+IDs to copy.
+
 ### Repo Sync
 
 ```bash
