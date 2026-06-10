@@ -12,6 +12,7 @@ import { statusCommand } from "./commands/status.js";
 import { resetCommand } from "./commands/reset.js";
 import { usageCommand } from "./commands/usage.js";
 import { syncCommand } from "./commands/sync.js";
+import { githubCommand } from "./commands/github.js";
 import { printBanner } from "./ui.js";
 
 const require = createRequire(import.meta.url);
@@ -41,6 +42,7 @@ program.addCommand(usageCommand);
 program.addCommand(statusCommand);
 program.addCommand(resetCommand);
 program.addCommand(syncCommand);
+program.addCommand(githubCommand);
 
 program.on("command:*", ([commandName]) => {
   printBanner();

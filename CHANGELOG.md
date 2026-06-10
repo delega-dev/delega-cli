@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `delega github connect` — start the self-serve GitHub App install flow:
+  opens the GitHub install page tied to your account via a one-time link, then
+  the repos you select are auto-linked as verified bindings (no manual
+  installation id). `--no-open` prints the URL instead; `--json` for scripting.
+
 ## [1.5.1] - 2026-06-10
 
 ### Fixed
