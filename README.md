@@ -84,6 +84,16 @@ delega tasks heartbeat <id> --lease 600    # Extend with a custom lease (30-3600
 delega tasks release <id>                  # Release a claimed task back to the queue
 ```
 
+### Repo Sync
+
+```bash
+delega sync init --repo owner/name          # Create .delega/config.json + tasks.jsonl
+delega sync pull                            # Pull hosted tasks into .delega/tasks.jsonl
+delega sync status                          # Show local vs hosted drift
+delega sync push                            # Push local JSONL edits with CAS conflict checks
+delega sync push --no-auto-link             # Disable branch/HEAD auto-linking
+```
+
 ### Agents
 
 ```bash

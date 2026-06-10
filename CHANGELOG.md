@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-06-10
+
+### Added
+- `delega sync init|pull|push|status` — mirror hosted Delega tasks into
+  `.delega/tasks.jsonl` inside a Git repo, with deterministic JSONL output,
+  repo/branch/commit auto-linking on push, and explicit CAS conflicts when
+  hosted context changed after the local mirror was pulled
+
 ## [1.4.0] - 2026-06-10
 
 ### Added
