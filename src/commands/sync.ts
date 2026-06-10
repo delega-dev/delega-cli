@@ -96,7 +96,13 @@ export function parseTasksJsonl(raw: string): TaskSyncRecord[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line, index) => {
-      const parsed = JSON.parse(line) as unknown;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(line) as unknown;
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "invalid JSON";
+        throw new Error(`Line ${index + 1} is invalid JSON in .delega/tasks.jsonl: ${detail}`);
+      }
       if (!isPlainObject(parsed)) {
         throw new Error(`Line ${index + 1} must be a JSON object`);
       }

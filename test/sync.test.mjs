@@ -42,6 +42,7 @@ test("serializeTasksJsonl writes deterministic canonical lines", () => {
 });
 
 test("parseTasksJsonl rejects non-object and content-less lines", () => {
+  assert.throws(() => parseTasksJsonl('{"id":"a",\n'), /Line 1 is invalid JSON in \.delega\/tasks\.jsonl/);
   assert.throws(() => parseTasksJsonl("[]\n"), /Line 1 must be a JSON object/);
   assert.throws(() => parseTasksJsonl('{"id":"a"}\n'), /Line 1 must include content/);
 });
