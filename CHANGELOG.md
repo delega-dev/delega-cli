@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-06-10
+
+### Fixed
+- `delega sync` now reports a clear `Line N is invalid JSON in
+  .delega/tasks.jsonl` error instead of crashing with a raw stack trace when
+  the mirror file has been hand-edited into malformed JSON.
+
 ## [1.5.0] - 2026-06-10
 
 ### Added
