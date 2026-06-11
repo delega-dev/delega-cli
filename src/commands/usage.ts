@@ -28,7 +28,7 @@ function formatLimit(n: number | null | undefined): string {
   return String(n);
 }
 
-// Hosted-only gate: the /usage endpoint doesn't exist on self-hosted backends
+// The /usage endpoint only exists on the /v1 (api.delega.dev) namespace
 // (mirrors delega-mcp's client-side gate at delega-mcp/src/delega-client.ts:170).
 function isHostedApi(apiUrl: string): boolean {
   try {
@@ -48,15 +48,15 @@ Examples:
   $ delega usage
   $ delega usage --json
 
-Hosted API only (api.delega.dev). Self-hosted deployments do not expose
-a usage endpoint.
+Available on the Delega API (api.delega.dev). Custom /api-style endpoints
+do not expose a usage endpoint.
 `)
   .action(async (opts) => {
     const apiUrl = getApiUrl();
     if (!isHostedApi(apiUrl)) {
       console.error(
-        "Error: \`delega usage\` is only available on the hosted Delega API " +
-          "(api.delega.dev). Self-hosted deployments do not expose a usage endpoint.",
+        "Error: \`delega usage\` is only available on the Delega API " +
+          "(api.delega.dev). Custom endpoints do not expose a usage endpoint.",
       );
       process.exit(1);
     }

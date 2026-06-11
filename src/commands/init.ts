@@ -1,9 +1,4 @@
-import node_child_process from "node:child_process";
-import node_fs from "node:fs";
-import node_path from "node:path";
 import node_readline from "node:readline";
-import { setTimeout as sleep } from "node:timers/promises";
-import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
@@ -15,21 +10,11 @@ import {
 } from "../config.js";
 import { isValidEmail, printBanner } from "../ui.js";
 
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
-const pkg = require("../../package.json") as { version: string };
-
-const DELEGA_DOCKER_TAG = pkg.version;
 const HOSTED_API_URL = "https://api.delega.dev";
-const DEFAULT_LOCAL_PORT = 18890;
 const DEMO_TASK_CONTENT = "Review the Delega quickstart docs and try the API";
 const DOCS_URL = "https://delega.dev/docs";
 const HOSTED_DASHBOARD_URL = "https://delega.dev/dashboard";
-const GITHUB_URL = "https://github.com/delega-dev/delega";
-const DOCKER_INSTALL_URL = "https://docs.docker.com/get-docker/";
-const DOCKER_COMPOSE_TEMPLATE_PATH = fileURLToPath(
-  new URL("../templates/docker-compose.yml", import.meta.url),
-);
+const GITHUB_URL = "https://github.com/delega-dev";
 
 interface HostedSignupResponse {
   user?: {
@@ -46,12 +31,6 @@ interface HostedSignupResponse {
 
 interface HostedVerifyResponse {
   message?: string;
-}
-
-interface BootstrapAgentResponse {
-  id: string;
-  name: string;
-  api_key?: string;
 }
 
 interface TaskResponse {
@@ -239,22 +218,6 @@ function ensureInteractiveTerminal(): void {
   }
 }
 
-function loadDockerComposeTemplate(): string {
-  try {
-    return node_fs.readFileSync(DOCKER_COMPOSE_TEMPLATE_PATH, "utf-8");
-  } catch (error) {
-    throw new UserFacingError(
-      `Unable to load the Docker template: ${extractMessage(error)}`,
-    );
-  }
-}
-
-function buildDockerCompose(port: number): string {
-  return loadDockerComposeTemplate()
-    .replace(/__DELEGA_PORT__/g, String(port))
-    .replace(/__DELEGA_VERSION__/g, DELEGA_DOCKER_TAG);
-}
-
 function printSection(title: string): void {
   const lineWidth = 42;
   const suffix = "─".repeat(Math.max(6, lineWidth - title.length));
@@ -315,142 +278,6 @@ async function createDemoTask(apiBaseUrl: string, apiKey: string): Promise<TaskR
   }
 
   return result.data as TaskResponse;
-}
-
-function tryParsePort(input: string): number | null {
-  if (!/^\d+$/.test(input)) {
-    return null;
-  }
-  const port = Number(input);
-  if (!Number.isInteger(port) || port < 1 || port > 65535) {
-    return null;
-  }
-  return port;
-}
-
-function ensureDockerComposeInstalled(): void {
-  try {
-    node_child_process.execSync("docker compose version", { stdio: "ignore" });
-  } catch {
-    throw new UserFacingError(
-      "Docker with the Compose plugin is required for self-hosted setup.\n" +
-      `  Install Docker Desktop (includes Compose): ${DOCKER_INSTALL_URL}\n` +
-      "  Or install the Compose plugin: https://docs.docker.com/compose/install/",
-    );
-  }
-}
-
-async function writeComposeFile(port: number): Promise<string> {
-  const composePath = node_path.join(process.cwd(), "docker-compose.yml");
-
-  if (node_fs.existsSync(composePath)) {
-    const overwrite = await promptConfirm(
-      "docker-compose.yml already exists here. Overwrite it? (y/N) ",
-    );
-    if (!overwrite) {
-      throw new InitCancelledError("Setup cancelled before changing docker-compose.yml.");
-    }
-  }
-
-  try {
-    node_fs.writeFileSync(composePath, buildDockerCompose(port), "utf-8");
-  } catch (error) {
-    throw new UserFacingError(
-      `Unable to write docker-compose.yml: ${extractMessage(error)}`,
-    );
-  }
-
-  return composePath;
-}
-
-function startDockerCompose(composeDir: string): void {
-  try {
-    node_child_process.execSync("docker compose up -d", {
-      cwd: composeDir,
-      stdio: "inherit",
-    });
-  } catch (error) {
-    if (isSigintError(error)) {
-      throw new InitCancelledError();
-    }
-    throw new UserFacingError(
-      `Docker failed to start Delega (image tag: ${DELEGA_DOCKER_TAG}). Make sure Docker Desktop is running, then try again.\n` +
-      "  Check logs with: docker compose logs",
-    );
-  }
-}
-
-async function waitForHealthy(apiBaseUrl: string): Promise<void> {
-  const healthUrl = `${apiBaseUrl}/health`;
-  const maxWaitMs = 90_000;
-  const initialDelayMs = 2_000;
-  const maxDelayMs = 10_000;
-  const startTime = Date.now();
-
-  let attempt = 0;
-  let delayMs = initialDelayMs;
-
-  while (Date.now() - startTime < maxWaitMs) {
-    attempt += 1;
-    try {
-      const response = await fetch(healthUrl, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
-      if (response.ok) {
-        return;
-      }
-    } catch {
-      // Keep polling until the service responds or we run out of time.
-    }
-
-    const elapsedSec = Math.round((Date.now() - startTime) / 1000);
-    const remainingSec = Math.round((maxWaitMs - (Date.now() - startTime)) / 1000);
-
-    if (remainingSec <= 0) {
-      break;
-    }
-
-    if (attempt === 1) {
-      console.log(
-        chalk.dim("First-time Docker pull may take a minute or two..."),
-      );
-    }
-
-    console.log(
-      chalk.dim(`  Waiting for API... ${elapsedSec}s elapsed (timeout in ${remainingSec}s)`),
-    );
-
-    await sleep(delayMs);
-    delayMs = Math.min(delayMs * 1.5, maxDelayMs);
-  }
-
-  throw new UserFacingError(
-    `Delega did not become healthy at ${healthUrl} within 90 seconds.\n` +
-    "  If Docker is still pulling the image, wait and retry.\n" +
-    "  Check logs with: docker compose logs",
-  );
-}
-
-async function bootstrapLocalAgent(apiBaseUrl: string): Promise<BootstrapAgentResponse> {
-  const result = await requestJson<BootstrapAgentResponse>(
-    `${apiBaseUrl}/agents`,
-    jsonRequest("POST", { name: "my-agent" }),
-    "Bootstrapping your first agent",
-  );
-
-  if (!result.response.ok) {
-    throw new UserFacingError(
-      parseApiError(
-        result.data,
-        `Unable to create the first agent (${result.response.status})`,
-      ),
-    );
-  }
-
-  const agent = result.data as BootstrapAgentResponse;
-  if (!agent.api_key) {
-    throw new UserFacingError("The local API did not return an API key for the first agent.");
-  }
-
-  return agent;
 }
 
 async function finalizeSetup(rawApiUrl: string, apiKey: string, dashboardUrl: string): Promise<SetupResult> {
@@ -547,44 +374,6 @@ async function runHostedSetup(): Promise<SetupResult> {
   }
 
   return finalizeSetup(HOSTED_API_URL, agent.api_key, HOSTED_DASHBOARD_URL);
-}
-
-async function runSelfHostedSetup(): Promise<SetupResult> {
-  ensureDockerComposeInstalled();
-
-  let port: number | null = null;
-  while (port === null) {
-    const portInput = await promptText(`Port for Delega API [${DEFAULT_LOCAL_PORT}]: `);
-    port = tryParsePort(portInput || String(DEFAULT_LOCAL_PORT));
-    if (port === null) {
-      console.log(chalk.yellow("Port must be a number between 1 and 65535."));
-    }
-  }
-
-  const rawApiUrl = `http://localhost:${port}`;
-  const apiBaseUrl = normalizeApiUrl(rawApiUrl);
-
-  console.log();
-  console.log(chalk.dim(`Writing docker-compose.yml in ${process.cwd()}...`));
-  const composePath = await writeComposeFile(port);
-
-  console.log(chalk.dim("Starting Delega with Docker..."));
-  startDockerCompose(node_path.dirname(composePath));
-  console.log(
-    chalk.dim(
-      "Delega is bound to localhost only. To expose on your network, edit docker-compose.yml.",
-    ),
-  );
-
-  console.log();
-  console.log(chalk.dim("Waiting for the local API health check..."));
-  await waitForHealthy(apiBaseUrl);
-
-  console.log(chalk.green("✓ Local Delega API is healthy."));
-  console.log(chalk.dim("Creating your first admin agent..."));
-
-  const agent = await bootstrapLocalAgent(apiBaseUrl);
-  return finalizeSetup(rawApiUrl, agent.api_key as string, rawApiUrl);
 }
 
 interface McpClient {
@@ -727,14 +516,7 @@ async function runInit(): Promise<void> {
     return;
   }
 
-  const choice = await promptChoice("Where will you run Delega?", [
-    "Hosted (api.delega.dev — free tier, no setup)",
-    "Self-hosted (Docker on your machine)",
-  ]);
-
-  const result = choice === 0
-    ? await runHostedSetup()
-    : await runSelfHostedSetup();
+  const result = await runHostedSetup();
 
   await printSuccess(result);
 }
@@ -746,8 +528,8 @@ Examples:
   $ delega init                     Interactive setup wizard
 
 This command walks you through:
-  1. Choosing hosted (api.delega.dev) or self-hosted (Docker) deployment
-  2. Creating your account and first agent
+  1. Creating your account and first agent on api.delega.dev
+  2. Verifying your email
   3. Configuring your MCP client (Claude, Cursor, VS Code, etc.)
 `)
   .action(async () => {

@@ -26,11 +26,7 @@ The fastest way to get started — one command handles signup, verification, and
 npx @delega-dev/cli init
 ```
 
-The interactive wizard walks you through:
-1. **Hosted** — sign up with your email, verify, get your API key
-2. **Self-hosted** — spin up a Docker instance and bootstrap your first agent
-
-Either path ends with a working API key, a demo task, and ready-to-paste MCP config.
+The interactive wizard walks you through signing up with your email, verifying, and getting your API key — ending with a working key, a demo task, and ready-to-paste MCP config.
 
 ### Already have an account?
 
@@ -53,7 +49,7 @@ delega tasks complete <task-id>
 ### Getting Started
 
 ```bash
-delega init           # Interactive setup wizard (signup or self-hosted)
+delega init           # Interactive setup wizard (signup + MCP config)
 ```
 
 ### Authentication
@@ -157,19 +153,9 @@ Existing `api_key` entries in `~/.delega/config.json` are still read for backwar
 
 Environment variables take precedence over the config file.
 
-## Hosted vs Self-Hosted
+## Custom API Endpoints
 
-The CLI defaults to the hosted API at `https://api.delega.dev/v1`.
-
-For self-hosted deployments:
-
-```bash
-export DELEGA_API_URL="http://localhost:18890"
-# or for a remote reverse-proxied instance:
-export DELEGA_API_URL="https://delega.yourcompany.com/api"
-```
-
-Bare localhost URLs automatically use the self-hosted `/api` namespace. For remote self-hosted instances, include `/api` explicitly.
+The CLI defaults to the Delega API at `https://api.delega.dev/v1`. To target a custom endpoint (advanced), set `DELEGA_API_URL`. Bare localhost URLs automatically use the `/api` namespace; remote custom endpoints should include `/api` explicitly.
 
 ## Security Notes
 

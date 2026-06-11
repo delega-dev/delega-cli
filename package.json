@@ -1,13 +1,13 @@
 {
   "name": "@delega-dev/cli",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "CLI for Delega task API",
   "type": "module",
   "bin": {
     "delega": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc && node scripts/copy-templates.mjs",
+    "build": "tsc",
     "dev": "npx tsx src/index.ts",
     "test": "npm run build && node --test test/*.test.mjs"
   },
