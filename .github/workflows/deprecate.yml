@@ -1,0 +1,30 @@
+name: Deprecate versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      range:
+        description: "Version range to deprecate (e.g. <1.7.0)"
+        required: true
+      message:
+        description: "Deprecation message"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deprecate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Deprecate
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RANGE: ${{ inputs.range }}
+          MESSAGE: ${{ inputs.message }}
+        run: npm deprecate "@delega-dev/cli@${RANGE}" "${MESSAGE}"
