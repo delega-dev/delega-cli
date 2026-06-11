@@ -5,6 +5,7 @@ import {
   parseTasksJsonl,
   serializeTasksJsonl,
   stableStringify,
+  taskPathSegment,
 } from "../dist/commands/sync.js";
 
 test("stableStringify sorts object keys recursively", () => {
@@ -67,4 +68,9 @@ test("diffSyncRecords separates local, remote, changed, and clean buckets", () =
     changed: ["b"],
     clean: ["a"],
   });
+});
+
+test("taskPathSegment encodes task IDs before URL path construction", () => {
+  assert.equal(taskPathSegment("../agents?x=y"), "..%2Fagents%3Fx%3Dy");
+  assert.equal(taskPathSegment("task/with?query=true"), "task%2Fwith%3Fquery%3Dtrue");
 });

@@ -73,6 +73,10 @@ const SYNC_DIR = ".delega";
 const SYNC_CONFIG = "config.json";
 const TASKS_FILE = "tasks.jsonl";
 
+export function taskPathSegment(id: string | number): string {
+  return encodeURIComponent(String(id));
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Object.prototype.toString.call(value) === "[object Object]";
 }
@@ -296,8 +300,8 @@ async function fetchRemoteTasks(config: SyncConfig): Promise<TaskSyncRecord[]> {
   const records: TaskSyncRecord[] = [];
   for (const task of tasks) {
     const [context, links] = await Promise.all([
-      apiCall<TaskContextResponse>("GET", `/tasks/${task.id}/context`),
-      apiCall<TaskLink[]>("GET", `/tasks/${task.id}/links`),
+      apiCall<TaskContextResponse>("GET", `/tasks/${taskPathSegment(task.id)}/context`),
+      apiCall<TaskLink[]>("GET", `/tasks/${taskPathSegment(task.id)}/links`),
     ]);
     records.push(taskToSyncRecord(task, context, links));
   }
@@ -328,24 +332,25 @@ function hasContext(record: TaskSyncRecord): boolean {
 async function createTaskFromRecord(record: TaskSyncRecord): Promise<ApiTask> {
   const task = await apiCall<ApiTask>("POST", "/tasks", writableTaskBody(record));
   if (hasContext(record)) {
-    await apiCall<TaskContextResponse>("PATCH", `/tasks/${task.id}/context?expected_version=0`, record.context ?? {});
+    await apiCall<TaskContextResponse>("PATCH", `/tasks/${taskPathSegment(task.id)}/context?expected_version=0`, record.context ?? {});
   }
   return task;
 }
 
 async function updateExistingRecord(record: TaskSyncRecord): Promise<{ conflict?: { id: string; local: TaskSyncRecord; hosted: TaskContextResponse } }> {
   if (!record.id) throw new Error("Cannot update a task without an id");
-  const hostedContext = await apiCall<TaskContextResponse>("GET", `/tasks/${record.id}/context`);
+  const encodedTaskId = taskPathSegment(record.id);
+  const hostedContext = await apiCall<TaskContextResponse>("GET", `/tasks/${encodedTaskId}/context`);
   const expectedVersion = record.context_version ?? 0;
   if (hostedContext.version !== expectedVersion) {
     return { conflict: { id: record.id, local: record, hosted: hostedContext } };
   }
 
-  await apiCall<ApiTask>("PUT", `/tasks/${record.id}`, writableTaskBody(record));
+  await apiCall<ApiTask>("PUT", `/tasks/${encodedTaskId}`, writableTaskBody(record));
   if (contextChanged(record, hostedContext)) {
     const result = await apiRequest<TaskContextResponse>(
       "PATCH",
-      `/tasks/${record.id}/context?expected_version=${expectedVersion}`,
+      `/tasks/${encodedTaskId}/context?expected_version=${expectedVersion}`,
       record.context ?? {},
     );
     if (!result.ok && result.status === 409) {
@@ -370,8 +375,9 @@ function currentGitLinks(repoRoot: string, repo: string | null): TaskLink[] {
 
 async function attachLinks(taskId: string, links: TaskLink[]): Promise<number> {
   let created = 0;
+  const encodedTaskId = taskPathSegment(taskId);
   for (const link of links) {
-    const result = await apiRequest("POST", `/tasks/${taskId}/links`, link);
+    const result = await apiRequest("POST", `/tasks/${encodedTaskId}/links`, link);
     if (!result.ok) {
       const data = result.data as { error?: string; message?: string };
       throw new Error(data.error || data.message || `Failed to link task ${taskId}`);
