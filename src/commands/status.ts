@@ -139,7 +139,7 @@ Examples:
       console.log();
       console.log(chalk.yellow("Could not reach the API. Check:"));
       console.log(chalk.yellow("  - Is the URL correct? (DELEGA_API_URL=<url> delega status)"));
-      console.log(chalk.yellow("  - Service status: https://status.delega.dev"));
+      console.log(chalk.yellow("  - Service status: https://delega.dev/status"));
       console.log(chalk.yellow("  - Run `delega init` to reconfigure."));
     }
 

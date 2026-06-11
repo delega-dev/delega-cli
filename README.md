@@ -69,15 +69,20 @@ delega tasks create "content"              # Create a task
 delega tasks create "content" --priority 1 # Create with priority (1-4)
 delega tasks create "content" --labels "bug,urgent"
 delega tasks create "content" --due "2026-03-15"
-delega tasks show <id>                     # Show task details
+delega tasks show <id>                     # Show task details (incl. context + comments)
 delega tasks complete <id>                 # Mark task as completed
 delega tasks delete <id>                   # Delete a task
+delega tasks assign <task-id> <agent-id>   # Assign a task (no delegation chain)
 delega tasks delegate <task-id> <agent-id> --content "subtask description"
+delega tasks chain <id>                    # Show the parent/child delegation chain
+delega tasks set-context <id> '{"k":"v"}'  # Merge keys into the task context blob
+delega tasks dedup "proposed content"      # Check for near-duplicate open tasks
 delega tasks claim                         # Atomically claim the next available task
 delega tasks claim --project <id> --labels "backend,bug" --lease 600
 delega tasks heartbeat <id>                # Extend the lease on a claimed task
 delega tasks heartbeat <id> --lease 600    # Extend with a custom lease (30-3600s)
 delega tasks release <id>                  # Release a claimed task back to the queue
+delega tasks state <id> waiting_input      # Report session state on a claimed task
 ```
 
 ### Connect GitHub
@@ -109,12 +114,16 @@ delega agents list                              # List agents
 delega agents create <name>                     # Create an agent
 delega agents create <name> --display-name "Friendly Name"
 delega agents rotate <id>                       # Rotate an agent's API key (admin key required)
+delega agents delete <id>                       # Delete an agent (admin key required)
 ```
 
-### Stats
+### Diagnostics & Account
 
 ```bash
+delega status         # Connection check, agent info, task counts
 delega stats          # Show usage statistics
+delega usage          # Plan quota and rate-limit info
+delega reset          # Clear stored credentials and config
 ```
 
 ## Global Options

@@ -41,13 +41,13 @@ export function formatNetworkError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
 
   if (msg.includes("ECONNREFUSED")) {
-    return "Connection refused. Check your API URL (DELEGA_API_URL) and https://status.delega.dev";
+    return "Connection refused. Check your API URL (DELEGA_API_URL) and https://delega.dev/status";
   }
   if (msg.includes("ENOTFOUND") || msg.includes("getaddrinfo")) {
     return "Could not resolve the API hostname. Check your network connection and API URL.";
   }
   if (msg.includes("ETIMEDOUT") || msg.includes("timeout") || msg.includes("TimeoutError")) {
-    return "Connection timed out. Check your network connection and https://status.delega.dev";
+    return "Connection timed out. Check your network connection and https://delega.dev/status";
   }
   if (msg.includes("CERT") || msg.includes("certificate")) {
     return `TLS certificate error: ${msg}\n  If using a self-signed cert, set NODE_TLS_REJECT_UNAUTHORIZED=0 (not recommended for production).`;
