@@ -7,10 +7,13 @@ interface Agent {
   id: string;
   name: string;
   display_name?: string;
+  role?: string;
   active?: boolean;
   created_at?: string;
   api_key?: string;
 }
+
+const AGENT_ROLES = ["worker", "coordinator", "admin"] as const;
 
 const agentsList = new Command("list")
   .description("List agents")
@@ -35,10 +38,11 @@ Examples:
       return;
     }
 
-    const headers = ["Name", "Display Name", "Active", "Created"];
+    const headers = ["Name", "Display Name", "Role", "Active", "Created"];
     const rows = agents.map((a) => [
       a.name,
       a.display_name || "—",
+      a.role || "—",
       a.active !== false ? "yes" : "no",
       formatDate(a.created_at || ""),
     ]);
@@ -50,16 +54,26 @@ const agentsCreate = new Command("create")
   .description("Create a new agent")
   .argument("<name>", "Agent name")
   .option("--display-name <name>", "Friendly display name")
+  .option("--role <role>", `Role preset: ${AGENT_ROLES.join(", ")}`)
   .option("--json", "Output raw JSON")
   .addHelpText("after", `
 Examples:
   $ delega agents create my-agent
   $ delega agents create deploy-bot --display-name "Deploy Bot"
+  $ delega agents create scrum-bot --role coordinator
   $ delega agents create ci-agent --json  Get agent details (incl. API key) as JSON
+
+Roles: worker (own-task scope, default), coordinator (sees + can comment
+on all account tasks), admin (full account management).
 `)
   .action(async (name: string, opts) => {
+    if (opts.role && !AGENT_ROLES.includes(opts.role)) {
+      console.error(`Error: role must be one of: ${AGENT_ROLES.join(", ")}`);
+      process.exit(1);
+    }
     const body: Record<string, unknown> = { name };
     if (opts.displayName) body.display_name = opts.displayName;
+    if (opts.role) body.role = opts.role;
 
     const agent = await apiCall<Agent>("POST", "/agents", body);
 
@@ -207,9 +221,42 @@ agent, is the last active agent, or is the caller itself.
     console.log(`Agent ${id} deleted.`);
   });
 
+const agentsRole = new Command("role")
+  .description("Set an agent's role (admin key required)")
+  .argument("<agent_id>", "Agent ID")
+  .argument("<role>", `One of: ${AGENT_ROLES.join(", ")}`)
+  .option("--json", "Output raw JSON")
+  .addHelpText("after", `
+Examples:
+  $ delega agents role agt_123abc coordinator
+  $ delega agents role agt_123abc worker
+
+Roles: worker (own-task scope), coordinator (sees + can comment on all
+account tasks), admin (full account management). Sandbox agents graduate
+through the claim flow and cannot be assigned a role.
+`)
+  .action(async (agentId: string, role: string, opts) => {
+    if (!AGENT_ROLES.includes(role as (typeof AGENT_ROLES)[number])) {
+      console.error(`Error: role must be one of: ${AGENT_ROLES.join(", ")}`);
+      process.exit(1);
+    }
+    const agent = await apiCall<Agent>("PUT", `/agents/${encodeURIComponent(agentId)}`, { role });
+
+    if (opts.json) {
+      console.log(JSON.stringify(agent, null, 2));
+      return;
+    }
+
+    console.log();
+    label("Agent", agent.display_name || agent.name);
+    label("Role", agent.role || role);
+    console.log();
+  });
+
 export const agentsCommand = new Command("agents")
   .description("Manage agents")
   .addCommand(agentsList)
   .addCommand(agentsCreate)
   .addCommand(agentsRotate)
+  .addCommand(agentsRole)
   .addCommand(agentsDelete);

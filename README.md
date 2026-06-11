@@ -114,8 +114,11 @@ delega agents list                              # List agents
 delega agents create <name>                     # Create an agent
 delega agents create <name> --display-name "Friendly Name"
 delega agents rotate <id>                       # Rotate an agent's API key (admin key required)
+delega agents role <id> coordinator             # Set role: worker, coordinator, admin (admin key required)
 delega agents delete <id>                       # Delete an agent (admin key required)
 ```
+
+Roles: `worker` (own-task scope, default), `coordinator` (sees + can comment on all account tasks), `admin` (full account management).
 
 ### Diagnostics & Account
 
