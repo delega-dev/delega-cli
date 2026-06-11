@@ -48,6 +48,21 @@ test("parseTasksJsonl rejects non-object and content-less lines", () => {
   assert.throws(() => parseTasksJsonl('{"id":"a"}\n'), /Line 1 must include content/);
 });
 
+test("parseTasksJsonl rejects path-confusing and malformed task ids", () => {
+  const valid = "a".repeat(32);
+  // A well-formed server id is accepted; absent id is allowed (created on push).
+  assert.equal(parseTasksJsonl(`{"id":"${valid}","content":"ok"}\n`)[0].id, valid);
+  assert.equal(parseTasksJsonl('{"content":"new local task"}\n')[0].id, undefined);
+  // Path-traversal / query-injection ids from a hostile tasks.jsonl are rejected.
+  for (const id of ["..", ".", "../agents", "abc/../def", "task?x=y", "AAAA", ""]) {
+    assert.throws(
+      () => parseTasksJsonl(`${JSON.stringify({ id, content: "x" })}\n`),
+      /Line 1 has an invalid task id/,
+      `id ${JSON.stringify(id)} should be rejected`,
+    );
+  }
+});
+
 test("diffSyncRecords separates local, remote, changed, and clean buckets", () => {
   const diff = diffSyncRecords(
     [
@@ -73,4 +88,12 @@ test("diffSyncRecords separates local, remote, changed, and clean buckets", () =
 test("taskPathSegment encodes task IDs before URL path construction", () => {
   assert.equal(taskPathSegment("../agents?x=y"), "..%2Fagents%3Fx%3Dy");
   assert.equal(taskPathSegment("task/with?query=true"), "task%2Fwith%3Fquery%3Dtrue");
+});
+
+test("taskPathSegment refuses dot-segment ids that survive URL encoding", () => {
+  // encodeURIComponent leaves these untouched; URL normalization would then
+  // collapse "/tasks/../context" to "/context", so they must be rejected.
+  for (const id of [".", ".."]) {
+    assert.throws(() => taskPathSegment(id), /unsafe id/);
+  }
 });

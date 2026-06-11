@@ -73,8 +73,18 @@ const SYNC_DIR = ".delega";
 const SYNC_CONFIG = "config.json";
 const TASKS_FILE = "tasks.jsonl";
 
+// Server task ids are 32 lowercase hex chars. Locally authored records may have
+// no id yet (created on push), but any id that *is* present must match.
+const TASK_ID_RE = /^[a-f0-9]{32}$/;
+
 export function taskPathSegment(id: string | number): string {
-  return encodeURIComponent(String(id));
+  const encoded = encodeURIComponent(String(id));
+  // encodeURIComponent leaves "." and ".." untouched, so an id of "." or ".."
+  // would still collapse a path via URL normalization. Refuse those outright.
+  if (encoded === "" || encoded === "." || encoded === "..") {
+    throw new Error(`Refusing to build a task path from unsafe id: ${JSON.stringify(String(id))}`);
+  }
+  return encoded;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -112,6 +122,11 @@ export function parseTasksJsonl(raw: string): TaskSyncRecord[] {
       }
       if (typeof parsed.content !== "string" || !parsed.content.trim()) {
         throw new Error(`Line ${index + 1} must include content`);
+      }
+      if (parsed.id !== undefined && parsed.id !== null) {
+        if (typeof parsed.id !== "string" || !TASK_ID_RE.test(parsed.id)) {
+          throw new Error(`Line ${index + 1} has an invalid task id in .delega/tasks.jsonl`);
+        }
       }
       return parsed as unknown as TaskSyncRecord;
     });
