@@ -13,6 +13,7 @@ import { resetCommand } from "./commands/reset.js";
 import { usageCommand } from "./commands/usage.js";
 import { syncCommand } from "./commands/sync.js";
 import { githubCommand } from "./commands/github.js";
+import { recurringCommand } from "./commands/recurring.js";
 import { printBanner } from "./ui.js";
 
 const require = createRequire(import.meta.url);
@@ -43,6 +44,7 @@ program.addCommand(statusCommand);
 program.addCommand(resetCommand);
 program.addCommand(syncCommand);
 program.addCommand(githubCommand);
+program.addCommand(recurringCommand);
 
 program.on("command:*", ([commandName]) => {
   printBanner();
