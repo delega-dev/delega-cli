@@ -1,6 +1,6 @@
 {
   "name": "@delega-dev/cli",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "CLI for Delega task API",
   "type": "module",
   "bin": {
