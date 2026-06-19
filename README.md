@@ -75,8 +75,9 @@ delega tasks delete <id>                   # Delete a task
 delega tasks assign <task-id> <agent-id>   # Assign a task (no delegation chain)
 delega tasks delegate <task-id> <agent-id> --content "subtask description"
 delega tasks chain <id>                    # Show the parent/child delegation chain
-delega tasks set-context <id> '{"k":"v"}'  # Merge keys into the task context blob
-delega tasks dedup "proposed content"      # Check for near-duplicate open tasks
+delega tasks set-context <id> --context '{"k":"v"}'
+delega tasks set-context <id> --kv k=v     # Merge keys into the task context blob
+delega tasks dedup --content "proposed content"
 delega tasks claim                         # Atomically claim the next available task
 delega tasks claim --project <id> --labels "backend,bug" --lease 600
 delega tasks heartbeat <id>                # Extend the lease on a claimed task
@@ -106,6 +107,19 @@ delega sync status                          # Show local vs hosted drift
 delega sync push                            # Push local JSONL edits with CAS conflict checks
 delega sync push --no-auto-link             # Disable branch/HEAD auto-linking
 ```
+
+### Recurring Tasks
+
+```bash
+delega recurring list
+delega recurring create "Replace furnace filter" --rule monthly --anchor-day 1 --timezone America/Chicago
+delega recurring create "Schedule review" --rule weekly --anchor-weekday 1 --interval 2
+delega recurring update <id> --inactive
+delega recurring update <id> --active --next-due-at 2026-07-01T14:00:00Z
+delega recurring delete <id> --yes
+```
+
+Recurring rules support `daily`, `weekly`, `monthly`, and `yearly`. Use `--no-skip-if-open` on create, or `--allow-overlap` on update, when a template should spawn even if an earlier instance is still open.
 
 ### Agents
 
@@ -161,6 +175,7 @@ Existing `api_key` entries in `~/.delega/config.json` are still read for backwar
 | Variable | Description |
 |---|---|
 | `DELEGA_API_KEY` | API key (overrides secure storage and config) |
+| `DELEGA_AGENT_KEY` | Fallback API key for MCP/CLI shared environments |
 | `DELEGA_API_URL` | API base URL (overrides config file) |
 
 Environment variables take precedence over the config file.
