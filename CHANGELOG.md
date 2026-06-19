@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-06-12
+
+### Added
+- `delega recurring list|create|update|delete` — manage recurring task
+  templates through the hosted `/recurrences` API. Recurrence rules support
+  `daily`, `weekly`, `monthly`, and `yearly`, with interval, timezone, anchor,
+  assignment, label, priority, active, and overlap controls.
+
+## [1.8.0] - 2026-06-11
+
+### Added
+- Agent roles: `delega agents create --role <worker|coordinator|admin>`,
+  `delega agents role <agent_id> <role>`, and a Role column in
+  `delega agents list`.
+
+## [1.7.1] - 2026-06-11
+
+### Changed
+- Status and network failure hints now point users to `https://delega.dev/status`.
+- README command coverage was expanded for the current CLI surface.
+
+## [1.7.0] - 2026-06-11
+
+### Changed
+- Removed the self-hosted setup path from `delega init`; Delega CLI onboarding
+  now targets the hosted service at `api.delega.dev`.
+- Custom API endpoints remain available for existing advanced workflows via
+  `DELEGA_API_URL` or `--api-url`.
+
 ## [1.6.0] - 2026-06-10
 
 ### Added
