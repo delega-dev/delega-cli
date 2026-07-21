@@ -127,6 +127,7 @@ Recurring rules support `daily`, `weekly`, `monthly`, and `yearly`. Use `--no-sk
 delega agents list                              # List agents
 delega agents create <name>                     # Create an agent
 delega agents create <name> --display-name "Friendly Name"
+delega agents create <name> --role coordinator  # Create with role: worker, coordinator, admin
 delega agents rotate <id>                       # Rotate an agent's API key (admin key required)
 delega agents role <id> coordinator             # Set role: worker, coordinator, admin (admin key required)
 delega agents delete <id>                       # Delete an agent (admin key required)
@@ -146,11 +147,13 @@ delega reset          # Clear stored credentials and config
 ## Global Options
 
 ```bash
---json                # Output raw JSON for any command
 --api-url <url>       # Override API URL
 --version             # Show version
 --help                # Show help
 ```
+
+Many resource commands also support `--json` for raw JSON output; check
+`delega <command> --help` for command-specific flags.
 
 ## Configuration
 
