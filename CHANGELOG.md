@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-07-22
+
+### Security
+- `delega github connect` now validates the server-provided install URL as
+  `http(s)` and opens it via `rundll32` on Windows instead of `cmd /c start`,
+  closing a command-injection path if the API server is malicious or
+  redirected. macOS and Linux were unaffected.
+- Removed the suggestion to set `NODE_TLS_REJECT_UNAUTHORIZED=0` on certificate
+  errors; the message now recommends `NODE_EXTRA_CA_CERTS` for custom CAs.
+
+### Changed
+- Task and agent IDs are URL-encoded in API request paths (defense-in-depth).
+
 ## [1.9.0] - 2026-06-12
 
 ### Added
