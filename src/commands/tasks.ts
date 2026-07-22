@@ -183,7 +183,7 @@ Examples:
   $ delega tasks show abc123 --json       Get full task details as JSON
 `)
   .action(async (id: string, opts) => {
-    const task = await apiCall<Task>("GET", `/tasks/${id}`);
+    const task = await apiCall<Task>("GET", `/tasks/${encodeURIComponent(id)}`);
 
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
@@ -258,7 +258,7 @@ Examples:
   $ delega tasks complete abc123 --json   Get completed task as JSON
 `)
   .action(async (id: string, opts) => {
-    const task = await apiCall<Task>("POST", `/tasks/${id}/complete`);
+    const task = await apiCall<Task>("POST", `/tasks/${encodeURIComponent(id)}/complete`);
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
       return;
@@ -281,7 +281,7 @@ Examples:
 `)
   .action(async (id: string, opts) => {
     if (opts.dryRun) {
-      const task = await apiCall<Task>("GET", `/tasks/${id}`);
+      const task = await apiCall<Task>("GET", `/tasks/${encodeURIComponent(id)}`);
       if (opts.json) {
         console.log(JSON.stringify({ dry_run: true, would_delete: task }, null, 2));
         return;
@@ -296,7 +296,7 @@ Examples:
         return;
       }
     }
-    await apiCall("DELETE", `/tasks/${id}`);
+    await apiCall("DELETE", `/tasks/${encodeURIComponent(id)}`);
     if (opts.json) {
       console.log(JSON.stringify({ id, deleted: true }, null, 2));
       return;
@@ -319,7 +319,7 @@ Examples:
     const body: Record<string, unknown> = { assigned_to_agent_id: agentId };
     if (opts.content) body.content = opts.content;
 
-    const subtask = await apiCall<Task>("POST", `/tasks/${taskId}/delegate`, body);
+    const subtask = await apiCall<Task>("POST", `/tasks/${encodeURIComponent(taskId)}/delegate`, body);
     if (opts.json) {
       console.log(JSON.stringify(subtask, null, 2));
       return;
@@ -354,7 +354,7 @@ use \`delega tasks delegate\` instead — assign does not record a chain.
       process.exit(1);
     }
     const body = { assigned_to_agent_id: opts.unassign ? null : agentId };
-    const task = await apiCall<Task>("PUT", `/tasks/${taskId}`, body);
+    const task = await apiCall<Task>("PUT", `/tasks/${encodeURIComponent(taskId)}`, body);
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
       return;
@@ -391,7 +391,7 @@ Examples:
   $ delega tasks chain abc123 --json
 `)
   .action(async (taskId: string, opts) => {
-    const resp = await apiCall<ChainResponse>("GET", `/tasks/${taskId}/chain`);
+    const resp = await apiCall<ChainResponse>("GET", `/tasks/${encodeURIComponent(taskId)}/chain`);
     if (opts.json) {
       console.log(JSON.stringify(resp, null, 2));
       return;
@@ -486,7 +486,7 @@ Keys are deep-merged into existing context (not replaced).
       );
       process.exit(1);
     }
-    const resp = await apiCall<unknown>("PATCH", `/tasks/${taskId}/context`, body);
+    const resp = await apiCall<unknown>("PATCH", `/tasks/${encodeURIComponent(taskId)}/context`, body);
     if (opts.json) {
       console.log(JSON.stringify(resp, null, 2));
       return;
@@ -627,7 +627,7 @@ Fails with a 409 error if you do not hold an active claim on the task.
     const body: Record<string, unknown> = {};
     if (opts.lease) body.lease_seconds = opts.lease;
 
-    const task = await apiCall<Task>("POST", `/tasks/${taskId}/heartbeat`, body);
+    const task = await apiCall<Task>("POST", `/tasks/${encodeURIComponent(taskId)}/heartbeat`, body);
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
       return;
@@ -660,7 +660,7 @@ for liveness. Fails with a 409 error if you do not hold an active claim.
     const body: Record<string, unknown> = { state };
     if (opts.detail) body.detail = opts.detail;
 
-    const task = await apiCall<Task>("POST", `/tasks/${taskId}/state`, body);
+    const task = await apiCall<Task>("POST", `/tasks/${encodeURIComponent(taskId)}/state`, body);
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
       return;
@@ -683,7 +683,7 @@ Releasing requeues the task (status returns to open) so another agent
 can claim it. Only the claim holder or an admin can release a task.
 `)
   .action(async (taskId: string, opts) => {
-    const task = await apiCall<Task>("POST", `/tasks/${taskId}/release`);
+    const task = await apiCall<Task>("POST", `/tasks/${encodeURIComponent(taskId)}/release`);
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
       return;

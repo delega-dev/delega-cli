@@ -10,13 +10,32 @@ interface ConnectResponse {
 
 // Best-effort: open a URL in the user's default browser. Never throws — if it
 // fails (headless, no browser), the URL is always printed for manual use.
+// install_url comes from the API response. Only ever hand an http(s) URL to
+// the OS opener — a malicious or redirected server could otherwise return a
+// string with shell metacharacters that `cmd /c start` would re-parse on
+// Windows (command injection), or a javascript:/file: scheme.
+export function isOpenableUrl(url: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  return parsed.protocol === "http:" || parsed.protocol === "https:";
+}
+
 function openInBrowser(url: string): boolean {
+  if (!isOpenableUrl(url)) {
+    return false;
+  }
+  // rundll32 receives the URL as a real argv element rather than through
+  // cmd.exe's command-line re-parsing.
   const platform = process.platform;
   const [cmd, args] =
     platform === "darwin"
       ? ["open", [url]]
       : platform === "win32"
-        ? ["cmd", ["/c", "start", "", url]]
+        ? ["rundll32", ["url.dll,FileProtocolHandler", url]]
         : ["xdg-open", [url]];
   try {
     const child = node_child_process.spawn(cmd, args as string[], {

@@ -111,7 +111,7 @@ Examples:
   `)
   .action(async (id: string, opts) => {
     if (opts.dryRun) {
-      const result = await apiRequest<Agent>("GET", `/agents/${id}`);
+      const result = await apiRequest<Agent>("GET", `/agents/${encodeURIComponent(id)}`);
       const agent = result.ok ? (result.data as Agent) : undefined;
       if (opts.json) {
         console.log(
@@ -148,7 +148,7 @@ Examples:
 
     const result = await apiCall<{ id: string; api_key: string }>(
       "POST",
-      `/agents/${id}/rotate-key`,
+      `/agents/${encodeURIComponent(id)}/rotate-key`,
     );
 
     if (opts.json) {
@@ -179,7 +179,7 @@ agent, is the last active agent, or is the caller itself.
 `)
   .action(async (id: string, opts) => {
     if (opts.dryRun) {
-      const result = await apiRequest<Agent>("GET", `/agents/${id}`);
+      const result = await apiRequest<Agent>("GET", `/agents/${encodeURIComponent(id)}`);
       const agent = result.ok ? (result.data as Agent) : undefined;
       if (opts.json) {
         console.log(
@@ -213,7 +213,7 @@ agent, is the last active agent, or is the caller itself.
         return;
       }
     }
-    await apiCall("DELETE", `/agents/${id}`);
+    await apiCall("DELETE", `/agents/${encodeURIComponent(id)}`);
     if (opts.json) {
       console.log(JSON.stringify({ id, deleted: true }, null, 2));
       return;

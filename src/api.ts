@@ -50,7 +50,7 @@ export function formatNetworkError(err: unknown): string {
     return "Connection timed out. Check your network connection and https://delega.dev/status";
   }
   if (msg.includes("CERT") || msg.includes("certificate")) {
-    return `TLS certificate error: ${msg}\n  If using a self-signed cert, set NODE_TLS_REJECT_UNAUTHORIZED=0 (not recommended for production).`;
+    return `TLS certificate error: ${msg}\n  If your host requires a custom/internal CA, point NODE_EXTRA_CA_CERTS at its PEM file. Never disable certificate validation — it exposes your API key to interception.`;
   }
 
   return `Connection error: ${msg}`;
