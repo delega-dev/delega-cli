@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { apiCall, apiRequest } from "../api.js";
+import { pathSegment } from "../path.js";
 import { printTable, formatDate, label, confirm } from "../ui.js";
 
 interface Agent {
@@ -111,7 +112,7 @@ Examples:
   `)
   .action(async (id: string, opts) => {
     if (opts.dryRun) {
-      const result = await apiRequest<Agent>("GET", `/agents/${encodeURIComponent(id)}`);
+      const result = await apiRequest<Agent>("GET", `/agents/${pathSegment(id)}`);
       const agent = result.ok ? (result.data as Agent) : undefined;
       if (opts.json) {
         console.log(
@@ -148,7 +149,7 @@ Examples:
 
     const result = await apiCall<{ id: string; api_key: string }>(
       "POST",
-      `/agents/${encodeURIComponent(id)}/rotate-key`,
+      `/agents/${pathSegment(id)}/rotate-key`,
     );
 
     if (opts.json) {
@@ -179,7 +180,7 @@ agent, is the last active agent, or is the caller itself.
 `)
   .action(async (id: string, opts) => {
     if (opts.dryRun) {
-      const result = await apiRequest<Agent>("GET", `/agents/${encodeURIComponent(id)}`);
+      const result = await apiRequest<Agent>("GET", `/agents/${pathSegment(id)}`);
       const agent = result.ok ? (result.data as Agent) : undefined;
       if (opts.json) {
         console.log(
@@ -213,7 +214,7 @@ agent, is the last active agent, or is the caller itself.
         return;
       }
     }
-    await apiCall("DELETE", `/agents/${encodeURIComponent(id)}`);
+    await apiCall("DELETE", `/agents/${pathSegment(id)}`);
     if (opts.json) {
       console.log(JSON.stringify({ id, deleted: true }, null, 2));
       return;
@@ -240,7 +241,7 @@ through the claim flow and cannot be assigned a role.
       console.error(`Error: role must be one of: ${AGENT_ROLES.join(", ")}`);
       process.exit(1);
     }
-    const agent = await apiCall<Agent>("PUT", `/agents/${encodeURIComponent(agentId)}`, { role });
+    const agent = await apiCall<Agent>("PUT", `/agents/${pathSegment(agentId)}`, { role });
 
     if (opts.json) {
       console.log(JSON.stringify(agent, null, 2));

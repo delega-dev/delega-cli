@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { apiCall } from "../api.js";
+import { pathSegment } from "../path.js";
 import { formatDateTime, formatId, label, printTable, priorityBadge } from "../ui.js";
 
 interface Recurrence {
@@ -71,7 +72,7 @@ function recurrenceRule(r: Recurrence): string {
 }
 
 function recurrencePathSegment(id: string): string {
-  return encodeURIComponent(id);
+  return pathSegment(id);
 }
 
 function printRecurrence(r: Recurrence): void {

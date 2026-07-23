@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-07-22
+
+### Security
+- All task, agent, recurrence, and sync identifiers now use one path-segment
+  encoder that rejects empty, `.` and `..` values before URL construction,
+  preventing URL normalization from changing the intended API route.
+
 ## [1.9.1] - 2026-07-22
 
 ### Security

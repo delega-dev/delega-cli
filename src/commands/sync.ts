@@ -3,6 +3,7 @@ import node_fs from "node:fs";
 import node_path from "node:path";
 import { Command } from "commander";
 import { apiCall, apiRequest } from "../api.js";
+import { pathSegment } from "../path.js";
 import { printTable } from "../ui.js";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
@@ -78,13 +79,7 @@ const TASKS_FILE = "tasks.jsonl";
 const TASK_ID_RE = /^[a-f0-9]{32}$/;
 
 export function taskPathSegment(id: string | number): string {
-  const encoded = encodeURIComponent(String(id));
-  // encodeURIComponent leaves "." and ".." untouched, so an id of "." or ".."
-  // would still collapse a path via URL normalization. Refuse those outright.
-  if (encoded === "" || encoded === "." || encoded === "..") {
-    throw new Error(`Refusing to build a task path from unsafe id: ${JSON.stringify(String(id))}`);
-  }
-  return encoded;
+  return pathSegment(id);
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
