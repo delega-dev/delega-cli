@@ -1,7 +1,7 @@
 {
   "name": "@delega-dev/cli",
   "version": "1.9.2",
-  "description": "CLI for Delega task API",
+  "description": "CLI for Delega, a retired public service preserved as production engineering proof",
   "type": "module",
   "bin": {
     "delega": "dist/index.js"
@@ -46,7 +46,7 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
-  "homepage": "https://delega.dev",
+  "homepage": "https://ryanmcmillan.com/delega",
   "bugs": {
     "url": "https://github.com/delega-dev/delega-cli/issues"
   }

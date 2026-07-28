@@ -10,6 +10,8 @@
 
 # delega-cli
 
+> **Maintenance status:** Delega’s public hosted service retired on July 28, 2026. This CLI remains public as a verifiable engineering artifact and for Ryan McMillan’s existing private deployment. New public accounts and hosted access are not available. See the [case study](https://ryanmcmillan.com/delega).
+
 CLI for the Delega task API. Manage tasks, agents, and delegations from your terminal.
 
 ## Installation
@@ -18,17 +20,7 @@ CLI for the Delega task API. Manage tasks, agents, and delegations from your ter
 npm install -g @delega-dev/cli
 ```
 
-## Quick Start
-
-The fastest way to get started — one command handles signup, verification, and your first task:
-
-```bash
-npx @delega-dev/cli init
-```
-
-The interactive wizard walks you through signing up with your email, verifying, and getting your API key — ending with a working key, a demo task, and ready-to-paste MCP config.
-
-### Already have an account?
+## Existing owner credentials
 
 ```bash
 # Authenticate with your API key
@@ -46,10 +38,10 @@ delega tasks complete <task-id>
 
 ## Commands
 
-### Getting Started
+### Historical setup command
 
 ```bash
-delega init           # Interactive setup wizard (signup + MCP config)
+delega init           # Historical flow; hosted signup now returns 410
 ```
 
 ### Authentication
