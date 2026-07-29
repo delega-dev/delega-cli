@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.3] - 2026-07-28
+
+### Changed
+- Published the retirement maintenance notice to npm. Public hosted access and
+  signup retired July 28, 2026; this CLI remains available for Ryan McMillan's
+  private deployment and as a verifiable engineering artifact. The README now
+  identifies `delega init` as a historical flow whose hosted signup returns
+  `410 hosted_service_retired`.
+
 ## [1.9.2] - 2026-07-22
 
 ### Security
