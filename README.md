@@ -177,14 +177,15 @@ Environment variables take precedence over the config file.
 
 ## Custom API Endpoints
 
-The CLI defaults to the Delega API at `https://api.delega.dev/v1`. To target a custom endpoint (advanced), set `DELEGA_API_URL`. Bare localhost URLs automatically use the `/api` namespace; remote custom endpoints should include `/api` explicitly.
+The CLI defaults to the Delega API at `https://api.delega.dev/v1`. To target a custom endpoint (advanced), set `DELEGA_API_URL`. Bare loopback URLs (`localhost`, `127.0.0.1`, or `[::1]`) automatically use the `/api` namespace; remote custom endpoints should include `/api` explicitly.
 
 ## Security Notes
 
 - `delega login` now hides API key input instead of echoing it back to the terminal.
 - `delega login` stores API keys in the OS credential store instead of plaintext config when secure storage is available.
 - `~/.delega/config.json` is written with owner-only permissions (`0600`), and the config directory is locked to `0700`.
-- Remote API URLs must use `https://`; plain `http://` is only accepted for `localhost` / `127.0.0.1`.
+- Remote API URLs must use `https://`; plain `http://` is only accepted for loopback hosts (`localhost`, `127.0.0.1`, or `[::1]`).
+- IDs used in task, agent, recurrence, and sync API paths are encoded as a single URL path segment; empty, `.` and `..` values are rejected before requests are built.
 - On servers that do not expose `/agent/me`, `delega login` and `delega whoami` fall back to generic authentication checks instead of printing hosted account metadata.
 
 ## License
