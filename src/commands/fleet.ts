@@ -14,6 +14,7 @@ export interface FleetTask {
   session_state?: string | null;
   session_state_detail?: string | null;
   updated_at?: string;
+  due_date?: string | null;
 }
 
 export interface ParsedDetail {
@@ -42,6 +43,15 @@ export interface FleetWorkingItem {
   leaseRemainingSeconds: number | null;
 }
 
+export interface FleetDueItem {
+  id: string;
+  content: string;
+  dueDate: string;
+  daysOverdue: number;
+  claimedBy: string;
+  claimedByName: string;
+}
+
 export interface FleetStatus {
   generatedAt: string;
   counts: {
@@ -51,11 +61,15 @@ export interface FleetStatus {
     working: number;
     waitingInput: number;
     errored: number;
+    overdue: number;
+    dueSoon: number;
   };
   quiet: boolean;
   waitingInput: FleetAttentionItem[];
   errored: Omit<FleetAttentionItem, "question" | "options">[];
   working: FleetWorkingItem[];
+  overdue: FleetDueItem[];
+  dueSoon: FleetDueItem[];
 }
 
 // Parse the "QUESTION: <one line> / OPTIONS: <a / b / …>" convention used in
@@ -102,12 +116,24 @@ function leaseRemainingSeconds(task: FleetTask, now: Date): number | null {
   return Math.round((expires - now.getTime()) / 1000);
 }
 
+// Whole days between a YYYY-MM-DD due date and `now`'s local date; positive
+// means overdue, negative means still in the future. null for absent/bad dates.
+export function daysOverdue(dueDate: string | null | undefined, now: Date): number | null {
+  const raw = String(dueDate ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const due = new Date(raw + "T00:00:00");
+  if (Number.isNaN(due.getTime())) return null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((today.getTime() - due.getTime()) / 86400000);
+}
+
 // Derive the full fleet snapshot from one open-tasks listing. Pure so the
 // test fixtures can exercise it without the API.
 export function deriveFleetStatus(
   tasks: FleetTask[],
   now: Date,
   names: Record<string, string> = {},
+  dueSoonDays = 7,
 ): FleetStatus {
   const open = tasks.filter((t) => t.status !== "completed");
   const claimed = open.filter((t) => t.claimed_by_agent_id);
@@ -127,6 +153,28 @@ export function deriveFleetStatus(
       (a.lease_expires_at ?? "9999").localeCompare(b.lease_expires_at ?? "9999"),
     );
 
+  // Due-date views span ALL open tasks — a due backlog item is usually
+  // unclaimed, which the claim-state lists never see.
+  const dued = open
+    .map((t) => ({ task: t, days: daysOverdue(t.due_date, now) }))
+    .filter((entry): entry is { task: FleetTask; days: number } => entry.days !== null);
+  const toDueItem = (entry: { task: FleetTask; days: number }): FleetDueItem => ({
+    id: entry.task.id,
+    content: entry.task.content,
+    dueDate: String(entry.task.due_date).slice(0, 10),
+    daysOverdue: entry.days,
+    claimedBy: claimedBy(entry.task),
+    claimedByName: names[claimedBy(entry.task)] ?? "",
+  });
+  const overdue = dued
+    .filter((entry) => entry.days > 0)
+    .sort((a, b) => b.days - a.days)
+    .map(toDueItem);
+  const dueSoon = dued
+    .filter((entry) => entry.days <= 0 && -entry.days <= dueSoonDays)
+    .sort((a, b) => b.days - a.days)
+    .map(toDueItem);
+
   return {
     generatedAt: now.toISOString(),
     counts: {
@@ -136,6 +184,8 @@ export function deriveFleetStatus(
       working: working.length,
       waitingInput: waiting.length,
       errored: errored.length,
+      overdue: overdue.length,
+      dueSoon: dueSoon.length,
     },
     quiet: working.length + waiting.length + errored.length === 0,
     waitingInput: waiting.map((t) => {
@@ -168,6 +218,8 @@ export function deriveFleetStatus(
       leaseExpiresAt: t.lease_expires_at ?? "",
       leaseRemainingSeconds: leaseRemainingSeconds(t, now),
     })),
+    overdue,
+    dueSoon,
   };
 }
 
@@ -178,6 +230,7 @@ function truncate(text: string, max: number): string {
 const fleetStatus = new Command("status")
   .description("One-glance fleet snapshot: who is blocked on you, errored, or working")
   .option("--json", "Output raw JSON (for scripting and widgets)")
+  .option("--due-soon-days <n>", "Window for the dueSoon list in days", "7")
   .addHelpText("after", `
 Examples:
   $ delega fleet status                   Summary plus any attention items
@@ -190,10 +243,12 @@ Examples:
       apiCall<Array<{ id?: string; name?: string; display_name?: string }>>("GET", "/agents")
         .catch(() => []),
     ]);
+    const window = Number.parseInt(String(opts.dueSoonDays ?? "7"), 10);
     const status = deriveFleetStatus(
       Array.isArray(tasks) ? tasks : [],
       new Date(),
       agentNameMap(Array.isArray(agents) ? agents : []),
+      Number.isFinite(window) && window > 0 ? window : 7,
     );
 
     if (opts.json) {
@@ -204,15 +259,22 @@ Examples:
     const c = status.counts;
     console.log(
       `${c.claimed} claimed · ${c.waitingInput} waiting on you · ` +
-        `${c.errored} errored · ${c.working} working · ${c.unclaimed} unclaimed`,
+        `${c.errored} errored · ${c.working} working · ` +
+        `${c.overdue} overdue · ${c.dueSoon} due soon · ${c.unclaimed} unclaimed`,
     );
 
-    if (status.quiet) {
+    if (status.quiet && status.overdue.length === 0) {
       console.log("Fleet is quiet.");
       return;
     }
 
     const rows: string[][] = [
+      ...status.overdue.map((item) => [
+        "OVERDUE",
+        formatId(item.id),
+        item.claimedByName || (item.claimedBy ? formatId(item.claimedBy) : "—"),
+        truncate(`${item.daysOverdue}d overdue: ${item.content}`, 60),
+      ]),
       ...status.waitingInput.map((item) => [
         "WAITING",
         formatId(item.id),

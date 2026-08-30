@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { agentNameMap, deriveFleetStatus, parseStateDetail } from "../dist/commands/fleet.js";
+import { agentNameMap, daysOverdue, deriveFleetStatus, parseStateDetail } from "../dist/commands/fleet.js";
 
 test("parseStateDetail extracts question and options from the convention", () => {
   assert.deepEqual(
@@ -96,6 +96,8 @@ test("deriveFleetStatus counts, sorts, and parses", () => {
     working: 2,
     waitingInput: 2,
     errored: 1,
+    overdue: 0,
+    dueSoon: 0,
   });
   assert.equal(s.quiet, false);
   assert.equal(s.generatedAt, NOW.toISOString());
@@ -143,6 +145,8 @@ test("deriveFleetStatus reports a quiet fleet", () => {
     working: 0,
     waitingInput: 0,
     errored: 0,
+    overdue: 0,
+    dueSoon: 0,
   });
   assert.deepEqual(s.waitingInput, []);
   assert.deepEqual(s.errored, []);
@@ -202,4 +206,46 @@ test("agentNameMap prefers display_name, tolerates junk, and drives claimedByNam
   );
   assert.equal(s.working[0].claimedByName, "omarchy-claude");
   assert.equal(s.working[1].claimedByName, "");
+});
+
+test("daysOverdue computes whole local days and rejects junk", () => {
+  const now = new Date("2026-08-30T15:00:00");
+  assert.equal(daysOverdue("2026-08-27", now), 3);
+  assert.equal(daysOverdue("2026-08-30", now), 0);
+  assert.equal(daysOverdue("2026-09-04", now), -5);
+  assert.equal(daysOverdue("soon", now), null);
+  assert.equal(daysOverdue(null, now), null);
+});
+
+test("deriveFleetStatus builds overdue and dueSoon from all open tasks", () => {
+  const now = new Date("2026-08-30T15:00:00");
+  const s = deriveFleetStatus(
+    [
+      { id: "d1", content: "Very late unclaimed", status: "open", due_date: "2026-08-20" },
+      { id: "d2", content: "A bit late, claimed+working", status: "open", due_date: "2026-08-29",
+        claimed_by_agent_id: "a1", session_state: "working" },
+      { id: "d3", content: "Due tomorrow", status: "open", due_date: "2026-08-31" },
+      { id: "d4", content: "Due next month", status: "open", due_date: "2026-09-30" },
+      { id: "d5", content: "No due date", status: "open" },
+      { id: "d6", content: "Done late", status: "completed", due_date: "2026-08-01" },
+    ],
+    now,
+    { a1: "codex" },
+  );
+  assert.deepEqual(s.overdue.map((i) => [i.id, i.daysOverdue]), [["d1", 10], ["d2", 1]]);
+  assert.equal(s.overdue[1].claimedByName, "codex");
+  assert.deepEqual(s.dueSoon.map((i) => [i.id, i.daysOverdue]), [["d3", -1]]);
+  assert.equal(s.counts.overdue, 2);
+  assert.equal(s.counts.dueSoon, 1);
+  // quiet still reflects claim states only (d2 is working)
+  assert.equal(s.quiet, false);
+});
+
+test("dueSoon window is configurable", () => {
+  const now = new Date("2026-08-30T15:00:00");
+  const wide = deriveFleetStatus(
+    [{ id: "d4", content: "Due next month", status: "open", due_date: "2026-09-25" }],
+    now, {}, 30,
+  );
+  assert.equal(wide.counts.dueSoon, 1);
 });
