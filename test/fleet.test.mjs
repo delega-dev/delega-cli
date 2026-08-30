@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { deriveFleetStatus, parseStateDetail } from "../dist/commands/fleet.js";
+import { agentNameMap, deriveFleetStatus, parseStateDetail } from "../dist/commands/fleet.js";
 
 test("parseStateDetail extracts question and options from the convention", () => {
   assert.deepEqual(
@@ -173,4 +173,33 @@ test("deriveFleetStatus tolerates missing and malformed fields", () => {
   assert.equal(s.working.length, 2);
   assert.equal(s.working[0].leaseRemainingSeconds, null);
   assert.equal(s.working[1].leaseRemainingSeconds, null);
+});
+
+test("agentNameMap prefers display_name, tolerates junk, and drives claimedByName", () => {
+  const names = agentNameMap([
+    { id: "a1", name: "codex", display_name: "Codex (rm-omarchy)" },
+    { id: "a2", name: "omarchy-claude" },
+    { id: "", name: "ghost" },
+    null,
+    { id: "a3" },
+  ]);
+  assert.deepEqual(names, { a1: "Codex (rm-omarchy)", a2: "omarchy-claude" });
+  assert.deepEqual(agentNameMap(null), {});
+
+  const s = deriveFleetStatus(
+    [
+      {
+        id: "t1", content: "Named claim", status: "open",
+        claimed_by_agent_id: "a2", session_state: "working",
+      },
+      {
+        id: "t2", content: "Unknown agent", status: "open",
+        claimed_by_agent_id: "zz", session_state: "working",
+      },
+    ],
+    NOW,
+    names,
+  );
+  assert.equal(s.working[0].claimedByName, "omarchy-claude");
+  assert.equal(s.working[1].claimedByName, "");
 });

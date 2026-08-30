@@ -28,6 +28,7 @@ export interface FleetAttentionItem {
   options: string[];
   detail: string;
   claimedBy: string;
+  claimedByName: string;
   since: string;
 }
 
@@ -35,6 +36,7 @@ export interface FleetWorkingItem {
   id: string;
   content: string;
   claimedBy: string;
+  claimedByName: string;
   detail: string;
   leaseExpiresAt: string;
   leaseRemainingSeconds: number | null;
@@ -79,6 +81,20 @@ function claimedBy(task: FleetTask): string {
   return task.claimed_by_agent_id ?? "";
 }
 
+// Map agent ids to human labels. Names are decoration on this payload, so a
+// missing or failed agents listing degrades to empty names, never an error.
+export function agentNameMap(
+  agents: Array<{ id?: string; name?: string; display_name?: string }> | null | undefined,
+): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const agent of agents ?? []) {
+    if (!agent || !agent.id) continue;
+    const label = agent.display_name || agent.name || "";
+    if (label) map[String(agent.id)] = String(label);
+  }
+  return map;
+}
+
 function leaseRemainingSeconds(task: FleetTask, now: Date): number | null {
   if (!task.lease_expires_at) return null;
   const expires = Date.parse(task.lease_expires_at);
@@ -88,7 +104,11 @@ function leaseRemainingSeconds(task: FleetTask, now: Date): number | null {
 
 // Derive the full fleet snapshot from one open-tasks listing. Pure so the
 // test fixtures can exercise it without the API.
-export function deriveFleetStatus(tasks: FleetTask[], now: Date): FleetStatus {
+export function deriveFleetStatus(
+  tasks: FleetTask[],
+  now: Date,
+  names: Record<string, string> = {},
+): FleetStatus {
   const open = tasks.filter((t) => t.status !== "completed");
   const claimed = open.filter((t) => t.claimed_by_agent_id);
 
@@ -127,6 +147,7 @@ export function deriveFleetStatus(tasks: FleetTask[], now: Date): FleetStatus {
         options: parsed.options,
         detail: (t.session_state_detail ?? "").trim(),
         claimedBy: claimedBy(t),
+        claimedByName: names[claimedBy(t)] ?? "",
         since: t.updated_at ?? "",
       };
     }),
@@ -135,12 +156,14 @@ export function deriveFleetStatus(tasks: FleetTask[], now: Date): FleetStatus {
       content: t.content,
       detail: (t.session_state_detail ?? "").trim(),
       claimedBy: claimedBy(t),
+      claimedByName: names[claimedBy(t)] ?? "",
       since: t.updated_at ?? "",
     })),
     working: working.map((t) => ({
       id: t.id,
       content: t.content,
       claimedBy: claimedBy(t),
+      claimedByName: names[claimedBy(t)] ?? "",
       detail: (t.session_state_detail ?? "").trim(),
       leaseExpiresAt: t.lease_expires_at ?? "",
       leaseRemainingSeconds: leaseRemainingSeconds(t, now),
@@ -162,8 +185,16 @@ Examples:
   $ delega fleet status --json | jq .quiet   true when nothing needs attention
 `)
   .action(async (opts) => {
-    const tasks = await apiCall<FleetTask[]>("GET", "/tasks");
-    const status = deriveFleetStatus(Array.isArray(tasks) ? tasks : [], new Date());
+    const [tasks, agents] = await Promise.all([
+      apiCall<FleetTask[]>("GET", "/tasks"),
+      apiCall<Array<{ id?: string; name?: string; display_name?: string }>>("GET", "/agents")
+        .catch(() => []),
+    ]);
+    const status = deriveFleetStatus(
+      Array.isArray(tasks) ? tasks : [],
+      new Date(),
+      agentNameMap(Array.isArray(agents) ? agents : []),
+    );
 
     if (opts.json) {
       console.log(JSON.stringify(status, null, 2));
@@ -185,19 +216,19 @@ Examples:
       ...status.waitingInput.map((item) => [
         "WAITING",
         formatId(item.id),
-        item.claimedBy ? formatId(item.claimedBy) : "—",
+        item.claimedByName || (item.claimedBy ? formatId(item.claimedBy) : "—"),
         truncate(item.question || item.detail || item.content, 60),
       ]),
       ...status.errored.map((item) => [
         "ERRORED",
         formatId(item.id),
-        item.claimedBy ? formatId(item.claimedBy) : "—",
+        item.claimedByName || (item.claimedBy ? formatId(item.claimedBy) : "—"),
         truncate(item.detail || item.content, 60),
       ]),
       ...status.working.map((item) => [
         "working",
         formatId(item.id),
-        item.claimedBy ? formatId(item.claimedBy) : "—",
+        item.claimedByName || (item.claimedBy ? formatId(item.claimedBy) : "—"),
         truncate(item.content, 60),
       ]),
     ];
