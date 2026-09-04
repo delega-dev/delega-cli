@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { getApiKey, getApiUrl } from "../config.js";
+import { getApiKey, getApiUrl, getCloudflareAccessHeaders } from "../config.js";
 import { label } from "../ui.js";
 
 interface HealthResponse {
@@ -40,12 +40,14 @@ Examples:
   .action(async (opts) => {
     let apiKey: string | undefined;
     let apiUrl: string;
+    let accessHeaders: Record<string, string>;
     try {
       // 1. Check for API key (non-fatal — we can still show health info)
       apiKey = getApiKey();
 
       // 2. Resolve API URL
       apiUrl = getApiUrl();
+      accessHeaders = getCloudflareAccessHeaders();
     } catch (err) {
       console.error(`Configuration error: ${err instanceof Error ? err.message : err}`);
       process.exit(1);
@@ -61,6 +63,7 @@ Examples:
       // Health endpoint lives at the API root, not under /v1.
       const healthBase = apiUrl.replace(/\/v1\/?$/, "");
       const res = await fetch(healthBase + "/health", {
+        headers: accessHeaders,
         signal: AbortSignal.timeout(15_000),
       });
       if (res.ok) {
@@ -76,7 +79,11 @@ Examples:
 
     // 4. Hit /agent/me (authenticated) — direct fetch so network errors don't exit
     if (healthy && apiKey) {
-      const authHeaders = { "X-Agent-Key": apiKey, "Content-Type": "application/json" };
+      const authHeaders = {
+        "X-Agent-Key": apiKey,
+        "Content-Type": "application/json",
+        ...accessHeaders,
+      };
       try {
         const meRes = await fetch(apiUrl + "/agent/me", {
           headers: authHeaders,

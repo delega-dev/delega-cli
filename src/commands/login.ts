@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import node_readline from "node:readline";
-import { getApiUrl, loadConfig, persistApiKey, saveConfig } from "../config.js";
+import { getApiUrl, getCloudflareAccessHeaders, loadConfig, persistApiKey, saveConfig } from "../config.js";
 import { formatNetworkError } from "../api.js";
 import { printBanner } from "../ui.js";
 
@@ -94,9 +94,11 @@ Examples:
     // Validate by calling the API
     let config: ReturnType<typeof loadConfig>;
     let apiUrl: string;
+    let accessHeaders: Record<string, string>;
     try {
       config = loadConfig();
       apiUrl = getApiUrl();
+      accessHeaders = getCloudflareAccessHeaders();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Configuration error: ${msg}`);
@@ -109,6 +111,7 @@ Examples:
         headers: {
           "X-Agent-Key": key,
           "Content-Type": "application/json",
+          ...accessHeaders,
         },
       });
     } catch (err) {
@@ -139,6 +142,7 @@ Examples:
           headers: {
             "X-Agent-Key": key,
             "Content-Type": "application/json",
+            ...accessHeaders,
           },
         });
       } catch (err) {
