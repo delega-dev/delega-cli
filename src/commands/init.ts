@@ -3,6 +3,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import {
   getApiKey,
+  getCloudflareAccessHeaders,
   loadConfig,
   normalizeApiUrl,
   persistApiKey,
@@ -199,6 +200,7 @@ async function requestJson<T>(
 function jsonRequest(method: string, body?: unknown, apiKey?: string): RequestInit {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...getCloudflareAccessHeaders(),
   };
 
   if (apiKey) {

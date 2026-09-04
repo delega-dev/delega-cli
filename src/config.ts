@@ -127,3 +127,25 @@ export function getApiUrl(): string {
     "https://api.delega.dev"
   );
 }
+
+export function getCloudflareAccessHeaders(
+  environment: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  const clientId = environment.DELEGA_CF_ACCESS_CLIENT_ID;
+  const clientSecret = environment.DELEGA_CF_ACCESS_CLIENT_SECRET;
+  const hasClientId = Boolean(clientId);
+  const hasClientSecret = Boolean(clientSecret);
+
+  if (hasClientId !== hasClientSecret) {
+    throw new Error(
+      "Cloudflare Access configuration is incomplete. Set both DELEGA_CF_ACCESS_CLIENT_ID and DELEGA_CF_ACCESS_CLIENT_SECRET, or neither.",
+    );
+  }
+
+  return hasClientId
+    ? {
+        "CF-Access-Client-Id": clientId!,
+        "CF-Access-Client-Secret": clientSecret!,
+      }
+    : {};
+}

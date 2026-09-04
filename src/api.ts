@@ -1,4 +1,4 @@
-import { getApiKey, getApiUrl } from "./config.js";
+import { getApiKey, getApiUrl, getCloudflareAccessHeaders } from "./config.js";
 
 export interface ApiError {
   error?: string;
@@ -75,8 +75,10 @@ export async function apiRequest<T = unknown>(
   }
 
   let apiBase: string;
+  let accessHeaders: Record<string, string>;
   try {
     apiBase = getApiUrl();
+    accessHeaders = getCloudflareAccessHeaders();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`Configuration error: ${msg}`);
@@ -88,6 +90,7 @@ export async function apiRequest<T = unknown>(
   const headers: Record<string, string> = {
     "X-Agent-Key": apiKey,
     "Content-Type": "application/json",
+    ...accessHeaders,
   };
 
   const options: RequestInit = {

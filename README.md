@@ -172,12 +172,16 @@ Existing `api_key` entries in `~/.delega/config.json` are still read for backwar
 | `DELEGA_API_KEY` | API key (overrides secure storage and config) |
 | `DELEGA_AGENT_KEY` | Fallback API key for MCP/CLI shared environments |
 | `DELEGA_API_URL` | API base URL (overrides config file) |
+| `DELEGA_CF_ACCESS_CLIENT_ID` | Cloudflare Access service-token client ID; set together with the secret |
+| `DELEGA_CF_ACCESS_CLIENT_SECRET` | Cloudflare Access service-token secret; set together with the client ID |
 
 Environment variables take precedence over the config file.
 
 ## Custom API Endpoints
 
 The CLI defaults to the Delega API at `https://api.delega.dev/v1`. To target a custom endpoint (advanced), set `DELEGA_API_URL`. Bare loopback URLs (`localhost`, `127.0.0.1`, or `[::1]`) automatically use the `/api` namespace; remote custom endpoints should include `/api` explicitly.
+
+For a deployment protected by Cloudflare Access, set both service-token variables in the environment. The CLI rejects partial Access configuration and never places either value in command-line arguments.
 
 ## Security Notes
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added optional paired `DELEGA_CF_ACCESS_CLIENT_ID` and
+  `DELEGA_CF_ACCESS_CLIENT_SECRET` support across normal commands, login,
+  initialization, and status checks for Cloudflare Access-protected APIs.
+
 ## [1.9.3] - 2026-07-28
 
 ### Changed
