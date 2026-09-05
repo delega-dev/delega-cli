@@ -120,19 +120,6 @@ function writeWindowsProtectedFile(apiKey: string): void {
   });
 }
 
-export function secureStoreLabel(): string | undefined {
-  if (process.platform === "darwin") {
-    return "macOS Keychain";
-  }
-  if (process.platform === "linux" && isLinuxSecretToolAvailable()) {
-    return "libsecret keyring";
-  }
-  if (process.platform === "win32") {
-    return "Windows user-protected storage";
-  }
-  return undefined;
-}
-
 export function loadStoredApiKey(): string | undefined {
   if (process.platform === "darwin") {
     return readMacosKeychain();

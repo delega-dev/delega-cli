@@ -131,11 +131,6 @@ export async function apiCall<T = unknown>(
   body?: unknown,
 ): Promise<T> {
   const result = await apiRequest<T>(method, path, body);
-  if (result.status === 401) {
-    console.error(formatApiError(401, result.data as ApiError));
-    process.exit(1);
-  }
-
   if (!result.ok) {
     console.error(formatApiError(result.status, result.data as ApiError));
     process.exit(1);
