@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.8] - 2026-09-04
+
+### Fixed
+- `delega fleet status` now pages through open tasks only
+  (`GET /tasks?completed=false&limit=500&offset=N`) instead of reading the
+  API's unfiltered first 100 rows. On an account with more than a page of
+  top-priority tasks that request never reached lower-priority claims, so the
+  snapshot reported a quiet fleet while agents were working or waiting on
+  input. Superseded tasks are excluded from the snapshot as well.
+
 ## [1.9.7] - 2026-09-04
 
 ### Added
