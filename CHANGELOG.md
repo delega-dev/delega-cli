@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.9] - 2026-09-04
+
+### Fixed
+- `delega status` rendered its Tasks line from `completed_tasks` and
+  `pending_tasks`, fields `GET /stats` never returns, so it always read
+  "0 completed / 0 pending / N total" where N was in fact the open-task count.
+  The line now shows open, completed (with today's count), overdue, and
+  due-today figures from the fields the API actually sends.
+
 ## [1.9.8] - 2026-09-04
 
 ### Fixed
