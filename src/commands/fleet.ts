@@ -15,6 +15,7 @@ export interface FleetTask {
   session_state_detail?: string | null;
   updated_at?: string;
   due_date?: string | null;
+  superseded_at?: string | null;
 }
 
 export interface ParsedDetail {
@@ -127,6 +128,50 @@ export function daysOverdue(dueDate: string | null | undefined, now: Date): numb
   return Math.round((today.getTime() - due.getTime()) / 86400000);
 }
 
+// The list endpoint sorts by priority and returns one page (default 100 rows,
+// at most 500) with completed tasks included unless told otherwise. A single
+// unfiltered GET /tasks therefore only ever sees the top of the backlog, and
+// once more than a page of tasks share the top priority every claim that sorts
+// below it silently disappears from the snapshot. Fleet status must instead
+// ask for open tasks only and walk every page.
+export const FLEET_PAGE_SIZE = 500; // the API's maximum page size
+
+// Hard ceiling on pages walked per snapshot so a misbehaving server that
+// never returns a short page cannot turn one poll into an unbounded loop.
+export const FLEET_MAX_PAGES = 40;
+
+export type FleetFetcher = (path: string) => Promise<unknown>;
+
+export function openTasksPath(offset: number, pageSize = FLEET_PAGE_SIZE): string {
+  return `/tasks?completed=false&limit=${pageSize}&offset=${offset}`;
+}
+
+// Collect every open task by paging GET /tasks?completed=false until a short
+// page. completed=false also drops superseded records server-side, which a
+// client-side status check cannot see. Rows are de-duplicated by id because a
+// task created or completed mid-walk shifts the offsets of the pages after it.
+export async function fetchOpenTasks(
+  fetcher: FleetFetcher,
+  pageSize = FLEET_PAGE_SIZE,
+): Promise<FleetTask[]> {
+  const tasks: FleetTask[] = [];
+  const seen = new Set<string>();
+  for (let page = 0; page < FLEET_MAX_PAGES; page++) {
+    const data = await fetcher(openTasksPath(page * pageSize, pageSize));
+    const rows = Array.isArray(data) ? (data as FleetTask[]) : [];
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      if (row.id) {
+        if (seen.has(row.id)) continue;
+        seen.add(row.id);
+      }
+      tasks.push(row);
+    }
+    if (rows.length < pageSize) break;
+  }
+  return tasks;
+}
+
 // Derive the full fleet snapshot from one open-tasks listing. Pure so the
 // test fixtures can exercise it without the API.
 export function deriveFleetStatus(
@@ -135,7 +180,9 @@ export function deriveFleetStatus(
   names: Record<string, string> = {},
   dueSoonDays = 7,
 ): FleetStatus {
-  const open = tasks.filter((t) => t.status !== "completed");
+  // completed=false already excludes both server-side; the check here keeps
+  // the derivation honest when handed an unfiltered listing.
+  const open = tasks.filter((t) => t.status !== "completed" && !t.superseded_at);
   const claimed = open.filter((t) => t.claimed_by_agent_id);
 
   const byState = (state: string) =>
@@ -239,7 +286,7 @@ Examples:
 `)
   .action(async (opts) => {
     const [tasks, agents] = await Promise.all([
-      apiCall<FleetTask[]>("GET", "/tasks"),
+      fetchOpenTasks((path) => apiCall<FleetTask[]>("GET", path)),
       apiCall<Array<{ id?: string; name?: string; display_name?: string }>>("GET", "/agents")
         .catch(() => []),
     ]);
