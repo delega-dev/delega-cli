@@ -1,6 +1,6 @@
 {
   "name": "@delega-dev/cli",
-  "version": "1.9.7",
+  "version": "1.9.8",
   "description": "CLI for Delega, a retired public service preserved as production engineering proof",
   "type": "module",
   "bin": {
