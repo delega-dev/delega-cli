@@ -21,12 +21,41 @@ interface MeResponse {
   };
 }
 
-interface Stats {
+// Shape of GET /stats. total_tasks counts OPEN tasks (completed = 0 and not
+// superseded); the completed total lives in total_completed. Earlier CLI
+// versions read completed_tasks / pending_tasks, which the API never sends,
+// so the line always showed "0 completed / 0 pending".
+export interface Stats {
   total_tasks?: number;
-  completed_tasks?: number;
-  pending_tasks?: number;
+  total_completed?: number;
+  completed_today?: number;
+  due_today?: number;
+  overdue?: number;
+  by_project?: Record<string, number>;
   total_agents?: number;
   active_agents?: number;
+}
+
+// One-line task summary for `delega status`, built only from fields the API
+// actually returns. Returns null when the payload has none of them so the
+// caller can skip the line instead of printing zeros. Exported for tests.
+export function formatTaskStats(stats: Stats | undefined): string | null {
+  if (!stats) return null;
+  const known = [stats.total_tasks, stats.total_completed, stats.overdue, stats.due_today]
+    .some((value) => typeof value === "number");
+  if (!known) return null;
+
+  const parts: string[] = [`${stats.total_tasks ?? 0} open`];
+  let completed = `${stats.total_completed ?? 0} completed`;
+  if (typeof stats.completed_today === "number" && stats.completed_today > 0) {
+    completed += ` (${stats.completed_today} today)`;
+  }
+  parts.push(completed);
+  parts.push(`${stats.overdue ?? 0} overdue`);
+  if (typeof stats.due_today === "number" && stats.due_today > 0) {
+    parts.push(`${stats.due_today} due today`);
+  }
+  return parts.join(" / ");
 }
 
 export const statusCommand = new Command("status")
@@ -138,7 +167,8 @@ Examples:
     // Stats
     if (stats) {
       console.log();
-      if (stats.total_tasks !== undefined) label("Tasks", `${stats.completed_tasks ?? 0} completed / ${stats.pending_tasks ?? 0} pending / ${stats.total_tasks} total`);
+      const taskLine = formatTaskStats(stats);
+      if (taskLine) label("Tasks", taskLine);
       if (stats.total_agents !== undefined) label("Agents", `${stats.active_agents ?? 0} active / ${stats.total_agents} total`);
     }
 
