@@ -1,4 +1,5 @@
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
+import { nonnegativeInteger } from "./human.js";
 import { apiCall } from "../api.js";
 import { pathSegment } from "../path.js";
 import {
@@ -144,6 +145,8 @@ const tasksCreate = new Command("create")
   .option("--priority <n>", "Priority 1-4 (default: 1)", parsePriority, 1)
   .option("--labels <labels>", "Comma-separated labels")
   .option("--due <date>", "Due date (YYYY-MM-DD)")
+  .option("--assign-to <agent>", "Assign to an existing agent ID")
+  .option("--evidence-required", "Require strong completion evidence")
   .option("--json", "Output raw JSON")
   .addHelpText("after", `
 Examples:
@@ -158,6 +161,8 @@ Examples:
     if (opts.priority) body.priority = opts.priority;
     if (opts.labels) body.labels = opts.labels.split(",").map((l: string) => l.trim());
     if (opts.due) body.due_date = opts.due;
+    if (opts.assignTo) body.assigned_to_agent_id = opts.assignTo;
+    if (opts.evidenceRequired) body.evidence_policy = "required";
 
     const task = await apiCall<Task>("POST", "/tasks", body);
 
@@ -252,6 +257,16 @@ Examples:
 const tasksComplete = new Command("complete")
   .description("Mark a task as completed")
   .argument("<id>", "Task ID")
+  .option("--expected-revision <n>", "Current task revision", nonnegativeInteger)
+  .option("--claim-generation <n>", "Current owned claim generation", nonnegativeInteger)
+  .option("--evidence-json <json>", "Array of completion evidence objects", (text: string) => {
+    try {
+      const value = JSON.parse(text);
+      if (!Array.isArray(value) || value.length < 1 || value.length > 5
+          || value.some(item => !item || typeof item !== "object" || Array.isArray(item))) throw new Error();
+      return value;
+    } catch { throw new InvalidArgumentError("Use a JSON array of one to five evidence objects."); }
+  })
   .option("--json", "Output raw JSON")
   .addHelpText("after", `
 Examples:
@@ -259,7 +274,11 @@ Examples:
   $ delega tasks complete abc123 --json   Get completed task as JSON
 `)
   .action(async (id: string, opts) => {
-    const task = await apiCall<Task>("POST", `/tasks/${pathSegment(id)}/complete`);
+    const body: Record<string, unknown> = {};
+    if (opts.expectedRevision !== undefined) body.expected_revision = opts.expectedRevision;
+    if (opts.claimGeneration !== undefined) body.claim_generation = opts.claimGeneration;
+    if (opts.evidenceJson !== undefined) body.evidence = opts.evidenceJson;
+    const task = await apiCall<Task>("POST", `/tasks/${pathSegment(id)}/complete`, Object.keys(body).length ? body : undefined);
     if (opts.json) {
       console.log(JSON.stringify(task, null, 2));
       return;
