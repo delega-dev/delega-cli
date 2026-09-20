@@ -78,6 +78,31 @@ delega tasks release <id>                  # Release a claimed task back to the 
 delega tasks state <id> waiting_input      # Report session state on a claimed task
 ```
 
+### Private human requests
+
+The optional human-request API uses an existing held task assigned to the
+configured runtime. It is disabled until separately released and enabled.
+Registration creates no task or message and grants no execution approval.
+
+```bash
+delega human register ACTUAL_INTERNAL_TASK_ID \
+  --criterion "Projector checked" --criterion "Chairs counted" \
+  --expected-revision 0 --timeout-seconds 1200 --json
+delega human status ACTUAL_INTERNAL_TASK_ID --json
+delega human result ACTUAL_INTERNAL_TASK_ID --json
+delega human cancel ACTUAL_INTERNAL_TASK_ID --expected-version 1 --json
+```
+
+Use the current task revision for registration and the request version from
+`human status` for cancellation. Equal registration retries reuse the immutable
+request. Status/result are read-only; results remain null until protected replies
+and canonical completion exist. A checklist is human-attested, not independently
+verified physical readiness. Cancellation leaves claim release to the controller.
+
+Ordinary `tasks create` now accepts `--assign-to` and `--evidence-required`.
+Advanced executors can supply `--expected-revision`, `--claim-generation` and
+`--evidence-json` to `tasks complete`; the API retains its normal authority checks.
+
 ### Connect GitHub
 
 ```bash
