@@ -8,6 +8,6 @@ on:
 
 jobs:
   test:
-    # Install + typecheck + build come from the reusable workflow so
-    # ci.yml and publish.yml can't drift apart.
+    # Install, typecheck, build and behavioral tests come from the reusable
+    # workflow so ci.yml and publish.yml can't drift apart.
     uses: ./.github/workflows/test.yml

@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    # Install + typecheck + build come from the reusable workflow.
+    # Install, typecheck, build and behavioral tests come from the reusable workflow.
     # Same source as ci.yml so the two gates can't drift apart.
     uses: ./.github/workflows/test.yml
 

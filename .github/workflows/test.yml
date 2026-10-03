@@ -1,8 +1,9 @@
 name: Test
 
 # Reusable workflow called by ci.yml (PR gate) and publish.yml (tag gate).
-# Single source of truth for install + typecheck + build. If a tool version
-# or script name changes, update this file only — both callers pick it up.
+# Single source of truth for install, typecheck, build and behavioral tests.
+# If a tool version or script name changes, update this file only — both
+# callers pick it up.
 
 on:
   workflow_call:
@@ -23,5 +24,5 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
-      - name: Build
-        run: npm run build
+      - name: Build and behavioral tests
+        run: npm test
